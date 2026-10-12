@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "UPI QR Monitor",
+  "version": "1.0.0",
+  "description": "Internal monitor for authorized Google Cloud UPI QR verification.",
+  "permissions": ["storage", "alarms", "webNavigation", "scripting"],
+  "host_permissions": [
+    "https://console.cloud.google.com/*",
+    "https://payments.google.com/*",
+    "https://pay.google.com/*",
+    "https://accounts.google.com/*",
+    "http://localhost:4000/*",
+    "http://127.0.0.1:4000/*"
+  ],
+  "background": {
+    "service_worker": "dist/serviceWorker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://console.cloud.google.com/*",
+        "https://payments.google.com/*",
+        "https://pay.google.com/*",
+        "https://accounts.google.com/*"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "js": ["dist/shadowHook.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://console.cloud.google.com/*",
+        "https://payments.google.com/*",
+        "https://pay.google.com/*",
+        "https://accounts.google.com/*"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "UPI QR Monitor",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

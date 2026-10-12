@@ -1,0 +1,105 @@
+import { FormEvent, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { api } from "../api/client";
+import { useAuth } from "./AuthContext";
+
+export function SignupPage() {
+  const { user } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  if (user) {
+    return <Navigate to={user.role === "ADMIN" ? "/admin/users" : "/dashboard"} replace />;
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api("/api/auth/signup/check", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      const result = await api<{ email: string }>("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password }),
+      });
+      setSentTo(result.email);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not create the account");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="login-screen">
+      <section className="login-card">
+        {sentTo ? (
+          <>
+            <p className="eyebrow">Check your email</p>
+            <h1>Confirm your account</h1>
+            <p className="muted">
+              We sent a confirmation link to <strong>{sentTo}</strong>. Open it to finish creating your account. The link
+              expires in 24 hours.
+            </p>
+            <Link to="/login">Back to sign in</Link>
+          </>
+        ) : (
+          <form className="signup-form" onSubmit={onSubmit}>
+            <p className="eyebrow">Employee</p>
+            <h1>Create an account</h1>
+            <p className="muted">Sign up with your email. We will send one confirmation link.</p>
+            <label>
+              Name
+              <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
+            </label>
+            <label>
+              Email
+              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Password
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <label>
+              Confirm password
+              <input
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                type="password"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button type="submit" disabled={submitting}>
+              {submitting ? "Sending…" : "Create account"}
+            </button>
+            <p className="auth-switch">
+              Already have an account? <Link to="/login">Sign in</Link>
+            </p>
+          </form>
+        )}
+      </section>
+    </main>
+  );
+}

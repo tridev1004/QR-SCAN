@@ -1,0 +1,76 @@
+body {
+  margin: 0;
+  width: 320px;
+  font: 14px "Segoe UI", sans-serif;
+  color: #1d1a16;
+}
+
+main {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+input, button {
+  font: inherit;
+}
+
+input {
+  border: 1px solid #e3dacd;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+button {
+  border: 1px solid #0f5c56;
+  background: #0f5c56;
+  color: white;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+}
+
+#signOut {
+  background: white;
+  color: #0f5c56;
+}
+
+#status, #watch, #capture, #recipientLabel {
+  margin: 0;
+}
+
+#recipients {
+  display: grid;
+  gap: 0.4rem;
+}
+
+#employeeList {
+  display: grid;
+  gap: 0.3rem;
+  max-height: 160px;
+  overflow: auto;
+}
+
+#employeeList label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+#watch, #capture {
+  color: #5c5346;
+}

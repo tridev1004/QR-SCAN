@@ -1,0 +1,15 @@
+{
+  "name": "upi-qr-monitor",
+  "private": true,
+  "workspaces": ["backend", "frontend", "extension"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build:extension": "npm run build -w extension",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
