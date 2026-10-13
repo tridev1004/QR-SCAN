@@ -25,13 +25,15 @@ export interface AppDeps extends PaymentUseCaseDeps {
   events: PaymentEventBus;
   mailer?: Mailer;
   appPublicUrl?: string;
+  corsOrigins?: string[];
 }
 
-function allowOrigin(origin: string | undefined): boolean {
+function allowOrigin(origin: string | undefined, extraOrigins: string[]): boolean {
   if (!origin) {
     return true;
   }
   return (
+    extraOrigins.includes(origin) ||
     origin.startsWith("http://localhost:") ||
     origin.startsWith("http://127.0.0.1:") ||
     origin.startsWith("chrome-extension://")
@@ -45,7 +47,7 @@ export function createApp(deps: AppDeps) {
   app.use(
     cors({
       origin(origin, callback) {
-        callback(null, allowOrigin(origin));
+        callback(null, allowOrigin(origin, deps.corsOrigins ?? []));
       },
     }),
   );

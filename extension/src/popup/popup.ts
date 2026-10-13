@@ -79,7 +79,7 @@ async function loadEmployees() {
     employeeList.replaceChildren();
     return;
   }
-  const base = (typeof stored.apiBaseUrl === "string" ? stored.apiBaseUrl : "http://localhost:4000").replace(/\/$/, "");
+  const base = (typeof stored.apiBaseUrl === "string" ? stored.apiBaseUrl : "https://api.chathere.site").replace(/\/$/, "");
   const response = await fetch(`${base}/api/admin/employees`, {
     headers: { Authorization: `Bearer ${stored.token}` },
   });

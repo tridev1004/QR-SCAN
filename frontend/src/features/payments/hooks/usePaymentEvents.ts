@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { apiUrl } from "../../../api/client";
 import { useAuth } from "../../../auth/AuthContext";
 import { runPaymentEventLoop } from "../api/sse";
 import { PaymentStreamEvent } from "../types/payment.types";
@@ -18,7 +19,7 @@ export function usePaymentEvents(onEvent: (event: PaymentStreamEvent) => void) {
       onEvent: (event) => handler.current(event),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       open: () =>
-        fetch("/api/payments/events", {
+        fetch(apiUrl("/api/payments/events"), {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         }),

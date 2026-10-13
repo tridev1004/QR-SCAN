@@ -10,7 +10,8 @@
     "https://pay.google.com/*",
     "https://accounts.google.com/*",
     "http://localhost:4000/*",
-    "http://127.0.0.1:4000/*"
+    "http://127.0.0.1:4000/*",
+    "https://api.chathere.site/*"
   ],
   "background": {
     "service_worker": "dist/serviceWorker.js"

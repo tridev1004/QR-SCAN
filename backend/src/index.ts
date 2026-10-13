@@ -63,6 +63,7 @@ async function main() {
     now: () => new Date(),
     mailer: createResendMailer(env.resendApiKey, env.resendFrom),
     appPublicUrl: env.appPublicUrl,
+    corsOrigins: env.corsOrigins,
   };
   const app = createApp(deps);
   const timer = setInterval(() => {
@@ -71,8 +72,8 @@ async function main() {
     });
   }, 15_000);
 
-  const server = app.listen(env.port, () => {
-    logger.info("api listening", { port: env.port });
+  const server = app.listen(env.port, env.host, () => {
+    logger.info("api listening", { port: env.port, host: env.host });
   });
 
   const shutdown = () => {

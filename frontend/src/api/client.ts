@@ -1,5 +1,11 @@
 const TOKEN_KEY = "upi-monitor-token";
 
+export const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+export function apiUrl(path: string): string {
+  return path.startsWith("/") ? `${apiBase}${path}` : path;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = sessionStorage.getItem(TOKEN_KEY);
   const headers = new Headers(options.headers);
@@ -10,7 +16,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(apiUrl(path), { ...options, headers });
   if (response.status === 401) {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem("upi-monitor-user");

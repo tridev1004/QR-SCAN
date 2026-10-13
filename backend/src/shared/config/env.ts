@@ -12,6 +12,7 @@ function required(name: string, fallback?: string): string {
 
 export const env = {
   port: Number(process.env.PORT ?? 4000),
+  host: process.env.HOST ?? "0.0.0.0",
   mongoUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/upi_qr_monitor"),
   jwtSecret: required("JWT_SECRET", "dev-only-change-me"),
   jwtTtl: process.env.JWT_TTL ?? "12h",
@@ -21,6 +22,10 @@ export const env = {
   adminName: process.env.ADMIN_NAME ?? "Admin",
   employeePassword: process.env.EMPLOYEE_PASSWORD ?? "employee123",
   appPublicUrl: process.env.APP_PUBLIC_URL ?? "http://localhost:5174",
+  corsOrigins: (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   resendFrom: process.env.RESEND_FROM ?? "UPI QR Monitor <onboarding@resend.dev>",
 };
