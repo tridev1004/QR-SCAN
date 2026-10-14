@@ -2,7 +2,7 @@ import { EmployeeQrBoard } from "../components/EmployeeQrBoard";
 import { usePayments } from "../hooks/usePayments";
 
 export function EmployeePaymentsPage() {
-  const { payments, earnings, loading, error } = usePayments("employee");
+  const { payments, earnings, loading, error, reserve } = usePayments("employee");
 
   return (
     <section>
@@ -15,7 +15,9 @@ export function EmployeePaymentsPage() {
       </div>
       {loading ? <p>Loading QR codes…</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
-      {!loading && earnings ? <EmployeeQrBoard payments={payments} successRewardInr={earnings.successRewardInr} /> : null}
+      {!loading && earnings ? (
+        <EmployeeQrBoard payments={payments} successRewardInr={earnings.successRewardInr} onReserve={reserve} />
+      ) : null}
     </section>
   );
 }

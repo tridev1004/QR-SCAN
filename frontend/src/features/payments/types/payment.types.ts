@@ -17,6 +17,7 @@ export interface PaymentSession {
   code: string;
   status: PaymentStatus;
   assignedEmployeeId?: string;
+  broadcast?: boolean;
   createdByUserId?: string;
   amount?: number;
   currency?: string;

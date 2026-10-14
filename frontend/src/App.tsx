@@ -4,7 +4,6 @@ import { AdminLoginRoute, RequireAdmin } from "./auth/guards";
 import { LoginPage } from "./auth/LoginPage";
 import { SignupPage } from "./auth/SignupPage";
 import { VerifyEmailPage } from "./auth/VerifyEmailPage";
-import { AdminTabs } from "./components/AdminTabs";
 import { HomeRedirect, Layout } from "./components/Layout";
 import { AdminPaymentsPage } from "./features/payments/pages/AdminPaymentsPage";
 import { EmployeePaymentsPage } from "./features/payments/pages/EmployeePaymentsPage";
@@ -20,11 +19,9 @@ export function AppRoutes() {
       <Route path="/admin/login" element={<AdminLoginRoute />} />
       <Route path="/admin" element={<RequireAdmin />}>
         <Route element={<Layout />}>
-          <Route element={<AdminTabs />}>
-            <Route index element={<Navigate to="users" replace />} />
-            <Route path="users" element={<AdminUsersPage />} />
-            <Route path="payments" element={<AdminPaymentsPage />} />
-          </Route>
+          <Route index element={<Navigate to="users" replace />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="payments" element={<AdminPaymentsPage />} />
           <Route path="payments/:paymentSessionId" element={<PaymentDetailsPage />} />
         </Route>
       </Route>

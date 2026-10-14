@@ -1,5 +1,5 @@
 import { createApiClient } from "./apiClient";
-import { ExtensionMessage, WorkerResponse } from "../shared/messages";
+import { ExtensionMessage, HeldQr, WorkerResponse } from "../shared/messages";
 import { PaymentStatus, isTerminalStatus } from "../shared/types";
 import { SessionRegistry } from "../storage/sessionStore";
 
@@ -10,6 +10,8 @@ export interface WorkerDeps {
   api: Api;
   loadConfig: () => Promise<{ apiBaseUrl: string; token: string } | null>;
   loadAssignee: () => Promise<string | null>;
+  loadHeld: () => Promise<HeldQr | null>;
+  saveHeld: (qr: HeldQr | null) => Promise<void>;
   save: () => Promise<void>;
   newLocalId: () => string;
 }
@@ -58,6 +60,10 @@ export function createMessageHandler(deps: WorkerDeps) {
       return { ok: true };
     }
 
+    if (message.type === "SEND_QR") {
+      return sendHeldQr();
+    }
+
     const fingerprint = message.payload.qrFingerprint;
     const existing = deps.registry.getByFingerprint(fingerprint);
     if (existing) {
@@ -79,39 +85,61 @@ export function createMessageHandler(deps: WorkerDeps) {
     if (!config) {
       return { ok: false, error: "Sign in from the extension popup" };
     }
-    const assignedEmployeeId = await deps.loadAssignee();
-    if (!assignedEmployeeId) {
-      return { ok: false, error: "Choose an active employee in the popup" };
-    }
+    await deps.saveHeld({
+      qrFingerprint: fingerprint,
+      qrImage: message.payload.qrImage,
+      expiresAt: message.payload.expiresAt,
+    });
+    return { ok: true, held: true };
 
-    inFlight.add(fingerprint);
-    try {
-      const localSessionId = deps.newLocalId();
-      const created = await deps.api.createPaymentSession(config, {
-        localSessionId,
-        assignedEmployeeId,
-        qrFingerprint: fingerprint,
-        qrImage: message.payload.qrImage,
-        expiresAt: message.payload.expiresAt,
-      });
-      deps.registry.add({
-        localSessionId,
-        backendPaymentSessionId: created.paymentSessionId,
-        qrFingerprint: fingerprint,
-        status: "QR_READY",
-        expiresAt: message.payload.expiresAt,
-      });
-      await deps.api.updatePaymentStatus(config, created.paymentSessionId, "WAITING_FOR_PAYMENT");
-      deps.registry.updateStatus(created.paymentSessionId, "WAITING_FOR_PAYMENT");
-      await deps.save();
-      const pending = pendingStatus.get(fingerprint);
-      if (pending) {
-        pendingStatus.delete(fingerprint);
-        await applyStatus(pending);
+    async function sendHeldQr(): Promise<WorkerResponse> {
+      const held = await deps.loadHeld();
+      if (!held) {
+        return { ok: false, error: "No QR is ready to send" };
       }
-      return { ok: true, backendPaymentSessionId: created.paymentSessionId };
-    } finally {
-      inFlight.delete(fingerprint);
+      const already = deps.registry.getByFingerprint(held.qrFingerprint);
+      if (already) {
+        return { ok: true, backendPaymentSessionId: already.backendPaymentSessionId };
+      }
+      if (inFlight.has(held.qrFingerprint)) {
+        return { ok: true, pending: true };
+      }
+      const config = await deps.loadConfig();
+      if (!config) {
+        return { ok: false, error: "Sign in from the extension popup" };
+      }
+      const assignedEmployeeId = await deps.loadAssignee();
+      const broadcast = !assignedEmployeeId;
+      inFlight.add(held.qrFingerprint);
+      try {
+        const localSessionId = deps.newLocalId();
+        const created = await deps.api.createPaymentSession(config, {
+          localSessionId,
+          ...(broadcast ? { broadcast: true } : { assignedEmployeeId: assignedEmployeeId ?? "" }),
+          qrFingerprint: held.qrFingerprint,
+          qrImage: held.qrImage,
+          expiresAt: held.expiresAt,
+        });
+        deps.registry.add({
+          localSessionId,
+          backendPaymentSessionId: created.paymentSessionId,
+          qrFingerprint: held.qrFingerprint,
+          status: "QR_READY",
+          expiresAt: held.expiresAt,
+        });
+        await deps.api.updatePaymentStatus(config, created.paymentSessionId, "WAITING_FOR_PAYMENT");
+        deps.registry.updateStatus(created.paymentSessionId, "WAITING_FOR_PAYMENT");
+        await deps.save();
+        await deps.saveHeld(null);
+        const pending = pendingStatus.get(held.qrFingerprint);
+        if (pending) {
+          pendingStatus.delete(held.qrFingerprint);
+          await applyStatus(pending);
+        }
+        return { ok: true, backendPaymentSessionId: created.paymentSessionId, broadcast };
+      } finally {
+        inFlight.delete(held.qrFingerprint);
+      }
     }
   };
 }

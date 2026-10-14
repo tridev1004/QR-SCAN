@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { isTerminal, PaymentStatus } from "../types/payment.types";
 import { paymentApi } from "../api/paymentApi";
 
-export function useQrImage(paymentSessionId: string, status: PaymentStatus): string | null {
+export function useQrImage(paymentSessionId: string, status: PaymentStatus, enabled = true): string | null {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isTerminal(status)) {
+    if (!enabled || isTerminal(status)) {
       setSrc(null);
       return;
     }
@@ -22,7 +22,7 @@ export function useQrImage(paymentSessionId: string, status: PaymentStatus): str
     return () => {
       cancelled = true;
     };
-  }, [paymentSessionId, status]);
+  }, [enabled, paymentSessionId, status]);
 
   return src;
 }

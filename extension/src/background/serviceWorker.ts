@@ -1,7 +1,7 @@
 import { createApiClient } from "./apiClient";
 import { createMessageHandler } from "./messageHandler";
 import { labelForScan } from "../content/scanReport";
-import { ExtensionMessage } from "../shared/messages";
+import { ExtensionMessage, HeldQr } from "../shared/messages";
 import { SessionRegistry } from "../storage/sessionStore";
 import { loadApiConfig, loadTrackedSessions, saveTrackedSessions } from "../storage/chromeSessionStore";
 import { injectWatcher, isWatchedUrl } from "../shared/injectWatcher";
@@ -17,6 +17,25 @@ const handle = createMessageHandler({
     return typeof stored.selectedEmployeeId === "string" && stored.selectedEmployeeId
       ? stored.selectedEmployeeId
       : null;
+  },
+  loadHeld: async () => {
+    const stored = await chrome.storage.session.get("heldQr");
+    const value = stored.heldQr;
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const held = value as Partial<HeldQr>;
+    if (!held.qrFingerprint || !held.qrImage || !held.expiresAt) {
+      return null;
+    }
+    return { qrFingerprint: held.qrFingerprint, qrImage: held.qrImage, expiresAt: held.expiresAt };
+  },
+  saveHeld: async (qr) => {
+    if (!qr) {
+      await chrome.storage.session.remove("heldQr");
+      return;
+    }
+    await chrome.storage.session.set({ heldQr: qr });
   },
   save: () => saveTrackedSessions(registry),
   newLocalId: () => crypto.randomUUID(),
@@ -75,9 +94,20 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     .then(async (result) => {
       if (message.type === "QR_OBSERVED") {
         captureLevel = 0;
+        const text = result.ok && result.held ? "QR ready. Press Send." : result.ok ? "" : result.error ?? "Could not keep the QR";
+        if (text) {
+          await rememberCapture(3, text);
+        }
+      }
+      if (message.type === "SEND_QR") {
+        captureLevel = 0;
         const stored = await chrome.storage.session.get(["selectedEmployeeName"]);
-        const who = typeof stored.selectedEmployeeName === "string" ? stored.selectedEmployeeName : "the selected employee";
-        const text = result.ok ? `QR sent to ${who}` : result.error ?? "Could not send the QR";
+        const who = typeof stored.selectedEmployeeName === "string" ? stored.selectedEmployeeName : "";
+        const text = !result.ok
+          ? result.error ?? "Could not send the QR"
+          : result.broadcast
+            ? "QR sent to all active employees"
+            : `QR sent to ${who || "the selected employee"}`;
         await rememberCapture(3, text);
       }
       if (message.type === "SCAN_STATUS") {

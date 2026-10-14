@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { holderLabel } from "../state/paymentEvents";
 import { Employee, PaymentSession } from "../types/payment.types";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PaymentTimer } from "./PaymentTimer";
@@ -7,11 +10,14 @@ export function PaymentTable({
   payments,
   employees,
   onOpen,
+  onCancel,
 }: {
   payments: PaymentSession[];
   employees: Employee[];
   onOpen: (id: string) => void;
+  onCancel?: (id: string) => Promise<unknown>;
 }) {
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const names = new Map(employees.map((employee) => [employee.id, employee.name]));
 
   return (
@@ -19,7 +25,7 @@ export function PaymentTable({
       <table>
         <thead>
           <tr>
-            <th>Employee</th>
+            <th>Reserved by</th>
             <th>Session</th>
             <th>Created</th>
             <th>Expires</th>
@@ -35,7 +41,7 @@ export function PaymentTable({
           ) : (
             payments.map((payment) => (
               <tr key={payment.id}>
-                <td>{payment.assignedEmployeeId ? names.get(payment.assignedEmployeeId) ?? "Assigned" : "Unassigned"}</td>
+                <td>{holderLabel(payment, names)}</td>
                 <td>{payment.code}</td>
                 <td>{new Date(payment.createdAt).toLocaleString()}</td>
                 <td>
@@ -45,9 +51,28 @@ export function PaymentTable({
                   <PaymentStatusBadge status={payment.status} />
                 </td>
                 <td>
-                  <button type="button" onClick={() => onOpen(payment.id)}>
-                    Open
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => onOpen(payment.id)}>
+                      Open
+                    </Button>
+                    {onCancel && !isTerminal(payment.status) ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={cancellingId === payment.id}
+                        onClick={() => {
+                          if (!window.confirm(`Cancel ${payment.code}? Employees will see it as failed.`)) {
+                            return;
+                          }
+                          setCancellingId(payment.id);
+                          void onCancel(payment.id).finally(() => setCancellingId(null));
+                        }}
+                      >
+                        {cancellingId === payment.id ? "Cancelling…" : "Cancel"}
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))

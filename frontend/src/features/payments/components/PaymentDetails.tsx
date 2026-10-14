@@ -1,4 +1,6 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { holderLabel } from "../state/paymentEvents";
 import { Employee, PaymentSession } from "../types/payment.types";
 import { isTerminal } from "../types/payment.types";
 import { statusLabel } from "../state/paymentEvents";
@@ -22,6 +24,11 @@ export function PaymentDetails({
   const [employeeId, setEmployeeId] = useState(payment.assignedEmployeeId ?? "");
   const [busy, setBusy] = useState(false);
   const terminal = isTerminal(payment.status);
+  const names = new Map((employees ?? []).map((employee) => [employee.id, employee.name]));
+
+  useEffect(() => {
+    setEmployeeId(payment.assignedEmployeeId ?? "");
+  }, [payment.assignedEmployeeId]);
 
   async function assign(event: FormEvent) {
     event.preventDefault();
@@ -46,6 +53,10 @@ export function PaymentDetails({
           Expires in <PaymentTimer expiresAt={payment.expiresAt} active={!terminal} />
         </p>
         <dl>
+          <div>
+            <dt>Reserved by</dt>
+            <dd>{holderLabel(payment, names)}</dd>
+          </div>
           <div>
             <dt>Created</dt>
             <dd>{new Date(payment.createdAt).toLocaleString()}</dd>
@@ -80,18 +91,19 @@ export function PaymentDetails({
           </form>
         ) : null}
         {onCancel && !terminal ? (
-          <button
+          <Button
             type="button"
-            className="danger"
+            variant="destructive"
             disabled={busy}
             onClick={() => {
-              if (window.confirm("Cancel this payment session?")) {
-                void onCancel();
+              if (window.confirm("Cancel this QR? The employee will see it as failed.")) {
+                setBusy(true);
+                void onCancel().finally(() => setBusy(false));
               }
             }}
           >
-            Cancel
-          </button>
+            {busy ? "Cancelling…" : "Cancel QR"}
+          </Button>
         ) : null}
         {terminal ? (
           <p className="muted">To try again, generate a new QR in Google Cloud. The extension will open a new session.</p>

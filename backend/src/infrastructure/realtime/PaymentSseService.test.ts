@@ -46,6 +46,30 @@ describe("SSE authorization", () => {
     expect(canReceivePaymentEvent(employeeB, captured)).toBe(false);
   });
 
+  it("shows an unclaimed QR to every employee and tells the others when it is reserved", () => {
+    const opened = {
+      type: "payment-created" as const,
+      data: {
+        id: "9",
+        code: "PAY-009",
+        status: PaymentStatus.QR_READY,
+        broadcast: true,
+        createdAt: "2026-10-01T12:00:00.000Z",
+        updatedAt: "2026-10-01T12:00:00.000Z",
+        history: [],
+      },
+    };
+    expect(canReceivePaymentEvent(employeeA, opened)).toBe(true);
+    expect(canReceivePaymentEvent(employeeB, opened)).toBe(true);
+
+    const reserved = {
+      type: "payment-assigned" as const,
+      data: { ...opened.data, broadcast: false, assignedEmployeeId: "emp-a" },
+    };
+    expect(canReceivePaymentEvent(employeeA, reserved)).toBe(true);
+    expect(canReceivePaymentEvent(employeeB, reserved)).toBe(true);
+  });
+
   it("lets an admin receive every event", () => {
     expect(
       canReceivePaymentEvent(admin, {

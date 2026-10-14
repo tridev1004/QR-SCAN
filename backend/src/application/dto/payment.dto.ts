@@ -6,6 +6,7 @@ export interface PaymentSessionDto {
   code: string;
   status: PaymentStatus;
   assignedEmployeeId?: string;
+  broadcast?: boolean;
   createdByUserId?: string;
   amount?: number;
   currency?: string;
@@ -27,6 +28,7 @@ export function toPaymentDto(session: PaymentSession): PaymentSessionDto {
     code: session.code,
     status: session.status,
     assignedEmployeeId: session.assignedEmployeeId,
+    broadcast: session.broadcast === true,
     createdByUserId: session.createdByUserId,
     amount: session.amount,
     currency: session.currency,

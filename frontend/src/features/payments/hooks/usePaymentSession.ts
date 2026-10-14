@@ -50,6 +50,7 @@ export function usePaymentSession(paymentSessionId: string) {
               status: event.data.status,
               errorMessage: event.data.errorMessage,
               completedAt: event.data.completedAt,
+              assignedEmployeeId: event.data.assignedEmployeeId ?? current.assignedEmployeeId,
               history: [
                 ...current.history,
                 { status: event.data.status, at: event.data.completedAt ?? new Date().toISOString(), message: event.data.errorMessage },

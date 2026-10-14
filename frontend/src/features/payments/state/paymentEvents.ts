@@ -1,4 +1,4 @@
-import { PaymentSession, PaymentStreamEvent } from "../types/payment.types";
+import { isTerminal, PaymentSession, PaymentStreamEvent } from "../types/payment.types";
 import { PublicUser } from "../../../auth/AuthContext";
 
 export function formatRemaining(expiresAt: string | undefined, now: number): string {
@@ -42,6 +42,9 @@ export function applyPaymentEvent(
   }
 
   if (event.type === "payment-status") {
+    if (viewer.role !== "ADMIN" && !event.data.assignedEmployeeId && isTerminal(event.data.status)) {
+      return sessions.filter((session) => session.id !== event.data.paymentSessionId);
+    }
     return sessions.map((session) =>
       session.id === event.data.paymentSessionId
         ? {
@@ -62,12 +65,31 @@ export function applyPaymentEvent(
   return sessions.map((session) => (session.id === event.data.id ? event.data : session));
 }
 
+export function holderLabel(
+  payment: Pick<PaymentSession, "assignedEmployeeId" | "broadcast">,
+  names: Map<string, string>,
+): string {
+  if (payment.assignedEmployeeId) {
+    return names.get(payment.assignedEmployeeId) ?? "Reserved";
+  }
+  if (payment.broadcast) {
+    return "Waiting to be reserved";
+  }
+  return "Unassigned";
+}
+
 function canViewerSee(event: PaymentStreamEvent, viewer: Pick<PublicUser, "id" | "role">): boolean {
   if (viewer.role === "ADMIN") {
     return true;
   }
   if (viewer.role !== "EMPLOYEE") {
     return false;
+  }
+  if (event.type === "payment-created" && event.data.broadcast && !event.data.assignedEmployeeId) {
+    return true;
+  }
+  if (event.type === "payment-status" && !event.data.assignedEmployeeId) {
+    return true;
   }
   return event.data.assignedEmployeeId === viewer.id;
 }

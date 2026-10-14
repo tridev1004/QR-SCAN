@@ -12,6 +12,7 @@ export interface PaymentSession {
   externalSessionId?: string;
   qrFingerprint: string;
   assignedEmployeeId?: string;
+  broadcast?: boolean;
   createdByUserId?: string;
   status: PaymentStatus;
   amount?: number;

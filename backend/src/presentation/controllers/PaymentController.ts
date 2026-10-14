@@ -7,6 +7,7 @@ import {
   getPaymentQr,
   getPaymentSession,
   recordHeartbeat,
+  reservePaymentSession,
   summarizeEmployeeEarnings,
 } from "../../application/use-cases/PaymentQueries";
 import { updatePaymentStatus } from "../../application/use-cases/UpdatePaymentStatus";
@@ -26,10 +27,12 @@ export function createPaymentController(deps: PaymentUseCaseDeps & { users: User
           res.status(400).json({ error: "Invalid expiry" });
           return;
         }
-        const employee = await requireActiveEmployee(deps.users, body.assignedEmployeeId);
+        const broadcast = body.broadcast === true;
+        const employee = broadcast ? null : await requireActiveEmployee(deps.users, body.assignedEmployeeId ?? "");
         const result = await createPaymentSession(deps, {
           localSessionId: body.localSessionId,
-          assignedEmployeeId: employee.id,
+          assignedEmployeeId: employee?.id,
+          broadcast,
           qrFingerprint: body.qrFingerprint,
           qrImage: body.qrImage,
           expiresAt,
@@ -77,9 +80,10 @@ export function createPaymentController(deps: PaymentUseCaseDeps & { users: User
       try {
         const employee = await deps.users.findById(req.user!.id);
         const payments = await getEmployeePayments(deps, req.user!.id);
+        const owned = payments.filter((payment) => payment.assignedEmployeeId === req.user!.id);
         res.json({
           payments,
-          earnings: summarizeEmployeeEarnings(payments, rewardInr(employee?.successRewardInr)),
+          earnings: summarizeEmployeeEarnings(owned, rewardInr(employee?.successRewardInr)),
         });
       } catch (error) {
         next(error);
@@ -90,6 +94,15 @@ export function createPaymentController(deps: PaymentUseCaseDeps & { users: User
       try {
         const session = await getPaymentSession(deps, req.user!, req.params.id);
         res.json({ payment: toPaymentDto(session) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async reserve(req: Request, res: Response, next: NextFunction) {
+      try {
+        const saved = await reservePaymentSession(deps, req.params.id, req.user!.id);
+        res.json({ payment: toPaymentDto(saved) });
       } catch (error) {
         next(error);
       }

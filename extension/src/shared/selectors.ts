@@ -4,13 +4,13 @@
  *
  * An indicator is either a CSS selector or the prefix "text:" plus visible text.
  * Success is the heading shown after the UPI prepayment is accepted.
- * Failure is the heading shown when Google cancels the payment.
+ * Failure is a heading Google shows when the payment or billing setup does not complete.
  */
 export const googleCloudSelectors = {
   qrImage: 'img[alt="QR code"][src^="data:image/png;base64,"]',
   timer: '[role="timer"]',
   qrHeadingText: "Scan QR code to use UPI",
   successIndicators: ["text:One-time prepayment required"] as readonly string[],
-  failureIndicators: ["text:Transaction wasn't completed"] as readonly string[],
+  failureIndicators: ["text:Transaction wasn't completed", "text:Billing setup can't be completed"] as readonly string[],
   expiredIndicators: [] as readonly string[],
 } as const;

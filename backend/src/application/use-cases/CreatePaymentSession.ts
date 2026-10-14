@@ -10,7 +10,8 @@ import { toPaymentDto } from "../dto/payment.dto";
 
 export interface CreatePaymentSessionInput {
   localSessionId: string;
-  assignedEmployeeId: string;
+  assignedEmployeeId?: string;
+  broadcast?: boolean;
   qrFingerprint: string;
   qrImage: string;
   expiresAt?: Date;
@@ -41,7 +42,8 @@ export async function createPaymentSession(deps: PaymentUseCaseDeps, input: Crea
     code: await deps.payments.nextCode(),
     externalSessionId: input.localSessionId,
     qrFingerprint: input.qrFingerprint,
-    assignedEmployeeId: input.assignedEmployeeId,
+    assignedEmployeeId: input.broadcast ? undefined : input.assignedEmployeeId,
+    broadcast: input.broadcast === true,
     createdByUserId: input.createdByUserId,
     status: PaymentStatus.DETECTED,
     expiresAt: input.expiresAt,

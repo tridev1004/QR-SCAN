@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { PaymentSession } from "../types/payment.types";
 import { isTerminal } from "../types/payment.types";
 import { statusLabel } from "../state/paymentEvents";
@@ -9,12 +10,21 @@ export function PaymentCard({
   payment,
   qrImage,
   resultLabel,
+  reserving = false,
+  reserveError,
+  onReserve,
+  holderLabel,
 }: {
   payment: PaymentSession;
   qrImage?: string | null;
   resultLabel?: string;
+  reserving?: boolean;
+  reserveError?: string | null;
+  onReserve?: () => void;
+  holderLabel?: string;
 }) {
   const terminal = isTerminal(payment.status);
+  const claimable = payment.broadcast === true && !payment.assignedEmployeeId;
   return (
     <article className="payment-card">
       <header>
@@ -24,8 +34,26 @@ export function PaymentCard({
         </div>
         <PaymentStatusBadge status={payment.status} />
       </header>
-      <PaymentQr src={terminal ? null : qrImage} />
-      {!terminal ? <p>Scan using your UPI app</p> : null}
+      {holderLabel ? <p className="text-sm font-medium text-foreground">{holderLabel}</p> : null}
+      {claimable ? (
+        <div className="relative overflow-hidden rounded-xl border border-border bg-muted">
+          <div className="aspect-square w-full animate-pulse bg-gradient-to-br from-stone-300 to-stone-100 blur-sm" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/50 px-4 text-center backdrop-blur-md">
+            <p className="text-sm font-medium text-foreground">Someone needs to reserve this QR</p>
+            {onReserve ? (
+              <Button type="button" size="lg" disabled={reserving} onClick={onReserve}>
+                {reserving ? "Reserving…" : "Reserve"}
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Waiting for an employee to reserve it</p>
+            )}
+            {reserveError ? <p className="text-xs text-destructive">{reserveError}</p> : null}
+          </div>
+        </div>
+      ) : (
+        <PaymentQr src={terminal ? null : qrImage} />
+      )}
+      {!terminal && !claimable ? <p>Scan using your UPI app</p> : null}
       <p className="countdown-label">
         Expires in <PaymentTimer expiresAt={payment.expiresAt} active={!terminal} />
       </p>

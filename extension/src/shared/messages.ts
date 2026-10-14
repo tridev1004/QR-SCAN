@@ -5,6 +5,12 @@ export interface ScanReport {
   timer: string | null;
 }
 
+export interface HeldQr {
+  qrFingerprint: string;
+  qrImage: string;
+  expiresAt: string;
+}
+
 export type ExtensionMessage =
   | {
       type: "SCAN_STATUS";
@@ -12,12 +18,10 @@ export type ExtensionMessage =
     }
   | {
       type: "QR_OBSERVED";
-      payload: {
-        qrFingerprint: string;
-        qrImage: string;
-        expiresAt: string;
-        sourceUrl: string;
-      };
+      payload: HeldQr & { sourceUrl: string };
+    }
+  | {
+      type: "SEND_QR";
     }
   | {
       type: "PAGE_STATUS";
@@ -30,5 +34,5 @@ export type ExtensionMessage =
     };
 
 export type WorkerResponse =
-  | { ok: true; backendPaymentSessionId?: string; pending?: boolean }
+  | { ok: true; backendPaymentSessionId?: string; pending?: boolean; held?: boolean; broadcast?: boolean }
   | { ok: false; error: string };

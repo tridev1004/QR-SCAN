@@ -9,6 +9,7 @@ interface PaymentDocument {
   externalSessionId?: string;
   qrFingerprint: string;
   assignedEmployeeId?: string;
+  broadcast?: boolean;
   createdByUserId?: string;
   status: PaymentStatus;
   amount?: number;
@@ -38,6 +39,7 @@ const paymentSchema = new Schema<PaymentDocument>(
     externalSessionId: { type: String },
     qrFingerprint: { type: String, required: true },
     assignedEmployeeId: { type: String },
+    broadcast: { type: Boolean, default: false },
     createdByUserId: { type: String },
     status: { type: String, required: true },
     amount: { type: Number },
@@ -88,6 +90,7 @@ function toEntity(doc: PaymentDocument): PaymentSession {
     externalSessionId: doc.externalSessionId,
     qrFingerprint: doc.qrFingerprint,
     assignedEmployeeId: doc.assignedEmployeeId,
+    broadcast: doc.broadcast === true,
     createdByUserId: doc.createdByUserId,
     status: doc.status,
     amount: doc.amount,
@@ -109,6 +112,7 @@ function toDocument(session: PaymentSession): PaymentDocument {
     externalSessionId: session.externalSessionId,
     qrFingerprint: session.qrFingerprint,
     assignedEmployeeId: session.assignedEmployeeId,
+    broadcast: session.broadcast === true,
     createdByUserId: session.createdByUserId,
     status: session.status,
     amount: session.amount,
@@ -153,6 +157,38 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
       throw new Error("Payment session disappeared during update");
     }
     return toEntity(doc);
+  }
+
+  async claimIfOpen(id: string, employeeId: string, now: Date): Promise<PaymentSession | null> {
+    const doc = await PaymentModel.findOneAndUpdate(
+      {
+        _id: id,
+        broadcast: true,
+        assignedEmployeeId: null,
+        status: { $in: [...ACTIVE_STATUSES] },
+      },
+      { $set: { assignedEmployeeId: employeeId, broadcast: false, updatedAt: now } },
+      { new: true },
+    ).lean();
+    if (doc) {
+      return toEntity(doc);
+    }
+    const current = await PaymentModel.findById(id).lean();
+    if (current?.assignedEmployeeId === employeeId) {
+      return toEntity(current);
+    }
+    return null;
+  }
+
+  async listOpenBroadcasts(): Promise<PaymentSession[]> {
+    const docs = await PaymentModel.find({
+      broadcast: true,
+      assignedEmployeeId: null,
+      status: { $in: [...ACTIVE_STATUSES] },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    return docs.map(toEntity);
   }
 
   async listForEmployee(employeeId: string): Promise<PaymentSession[]> {

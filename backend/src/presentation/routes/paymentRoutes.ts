@@ -20,6 +20,7 @@ export function createPaymentRoutes(
   router.get("/", authorize(UserRole.EMPLOYEE, UserRole.ADMIN), (req, res, next) => {
     void controller.listMine(req, res, next);
   });
+  router.post("/:id/reserve", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.reserve(req, res, next));
   router.get("/:id/qr", (req, res, next) => void controller.getQr(req, res, next));
   router.get("/:id/events", (req, res) => controller.events(req, res, String(req.params.id)));
   router.get("/:id", (req, res, next) => void controller.getOne(req, res, next));

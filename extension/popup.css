@@ -131,6 +131,10 @@ button:disabled {
   cursor: default;
 }
 
+#sendQr {
+  background: var(--teal-dark);
+}
+
 #signOut {
   background: transparent;
   color: var(--teal-dark);

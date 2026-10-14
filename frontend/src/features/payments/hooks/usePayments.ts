@@ -49,5 +49,25 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
     setPayments((current) => applyPaymentEvent(current, event, user));
   });
 
-  return { payments, earnings, loading, error, reload };
+  const reserve = useCallback(async (id: string) => {
+    try {
+      const result = await paymentApi.reserve(id);
+      setPayments((current) => current.map((item) => (item.id === result.payment.id ? result.payment : item)));
+      return result.payment;
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not reserve this QR";
+      if (/reserved/i.test(message)) {
+        setPayments((current) => current.filter((item) => item.id !== id));
+      }
+      throw caught;
+    }
+  }, []);
+
+  const cancel = useCallback(async (id: string) => {
+    const result = await paymentApi.cancel(id);
+    setPayments((current) => current.map((item) => (item.id === result.payment.id ? result.payment : item)));
+    return result.payment;
+  }, []);
+
+  return { payments, earnings, loading, error, reload, reserve, cancel };
 }

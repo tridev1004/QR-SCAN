@@ -188,6 +188,10 @@ export function AdminUsersPage() {
 
   return (
     <div className="admin-panel">
+      <div className="page-heading">
+        <p className="eyebrow">Employees</p>
+        <h1>Accounts</h1>
+      </div>
       <form className="panel create-grid" onSubmit={onCreate}>
         <label>
           Name

@@ -44,16 +44,30 @@ export const employeeListSchema = z.object({
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
 });
 
-export const createPaymentSchema = z.object({
-  localSessionId: z.string().uuid(),
-  assignedEmployeeId: z.string().min(1).max(80),
-  qrFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-  qrImage: z
-    .string()
-    .max(1_500_000)
-    .refine((value) => value.startsWith("data:image/png;base64,"), "QR image must be a PNG data URL"),
-  expiresAt: z.string().datetime(),
-});
+export const createPaymentSchema = z
+  .object({
+    localSessionId: z.string().uuid(),
+    assignedEmployeeId: z.string().min(1).max(80).optional(),
+    broadcast: z.boolean().optional(),
+    qrFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    qrImage: z
+      .string()
+      .max(1_500_000)
+      .refine((value) => value.startsWith("data:image/png;base64,"), "QR image must be a PNG data URL"),
+    expiresAt: z.string().datetime(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.broadcast) {
+      return;
+    }
+    if (!value.assignedEmployeeId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["assignedEmployeeId"],
+        message: "Choose an employee or send the QR to everyone",
+      });
+    }
+  });
 
 export const statusSchema = z.object({
   status: z.nativeEnum(PaymentStatus),

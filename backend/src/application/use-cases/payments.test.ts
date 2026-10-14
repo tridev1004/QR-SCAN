@@ -8,8 +8,8 @@ import { PaymentEventBus } from "../../infrastructure/realtime/PaymentEventBus";
 import { InMemoryPaymentSessionRepository } from "../../test/InMemoryPaymentSessionRepository";
 import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
-import { getEmployeePayments, getPaymentQr, getPaymentSession } from "./PaymentQueries";
-import { ForbiddenError } from "../../domain/errors/DomainError";
+import { getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
+import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
 
 const admin = { id: "admin", name: "Admin", email: "admin@company.local", role: UserRole.ADMIN, active: true };
@@ -157,5 +157,57 @@ describe("payment use cases", () => {
     await expect(getPaymentSession(deps, amanViewer, session.id)).rejects.toBeInstanceOf(ForbiddenError);
     expect((await getEmployeePayments(deps, rahul.id)).map((item) => item.id)).toEqual([session.id]);
     expect(await getEmployeePayments(deps, aman.id)).toEqual([]);
+  });
+
+  it("lets one employee reserve a shared QR and hides it from the other", async () => {
+    const { deps } = setup();
+    const fingerprint = "c".repeat(64);
+    const { session } = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      broadcast: true,
+      qrFingerprint: fingerprint,
+      qrImage: `data:image/png;base64,${fingerprint}`,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      createdByUserId: admin.id,
+    });
+    const rahulViewer = {
+      id: rahul.id,
+      name: rahul.name,
+      email: rahul.email,
+      role: rahul.role,
+      active: true,
+      successRewardInr: 0,
+    };
+    expect((await getEmployeePayments(deps, rahul.id)).map((item) => item.id)).toContain(session.id);
+    expect((await getEmployeePayments(deps, aman.id)).map((item) => item.id)).toContain(session.id);
+    await expect(getPaymentQr(deps, rahulViewer, session.id)).rejects.toBeInstanceOf(ForbiddenError);
+
+    const [first, second] = await Promise.all([
+      reservePaymentSession(deps, session.id, rahul.id).then(
+        (saved) => saved,
+        () => null,
+      ),
+      reservePaymentSession(deps, session.id, aman.id).then(
+        (saved) => saved,
+        (error: unknown) => {
+          expect(error).toBeInstanceOf(ConflictError);
+          return null;
+        },
+      ),
+    ]);
+    const winner = first ?? second;
+    const loser = first ? second : first;
+    expect(winner?.assignedEmployeeId).toBeTruthy();
+    expect(loser).toBeNull();
+    const visibleToRahul = (await getEmployeePayments(deps, rahul.id)).map((item) => item.id);
+    const visibleToAman = (await getEmployeePayments(deps, aman.id)).map((item) => item.id);
+    if (winner?.assignedEmployeeId === rahul.id) {
+      expect(visibleToRahul).toContain(session.id);
+      expect(visibleToAman).not.toContain(session.id);
+      expect(await getPaymentQr(deps, rahulViewer, session.id)).toContain("base64");
+    } else {
+      expect(visibleToAman).toContain(session.id);
+      expect(visibleToRahul).not.toContain(session.id);
+    }
   });
 });

@@ -36,6 +36,35 @@ describe("payment events", () => {
     );
     expect(next.map((item) => item.code)).toEqual(["PAY-009"]);
   });
+
+  it("shows an open QR to every employee and removes it after someone else reserves it", () => {
+    const open: PaymentSession = { ...session("9", "PAY-009"), assignedEmployeeId: undefined, broadcast: true };
+    const shown = applyPaymentEvent([], { type: "payment-created", data: open }, { id: "aman", role: "EMPLOYEE" });
+    expect(shown.map((item) => item.id)).toEqual(["9"]);
+    const reserved = applyPaymentEvent(
+      shown,
+      { type: "payment-assigned", data: { ...open, broadcast: false, assignedEmployeeId: "rahul" } },
+      { id: "aman", role: "EMPLOYEE" },
+    );
+    expect(reserved).toEqual([]);
+    const kept = applyPaymentEvent(
+      shown,
+      { type: "payment-assigned", data: { ...open, broadcast: false, assignedEmployeeId: "rahul" } },
+      { id: "rahul", role: "EMPLOYEE" },
+    );
+    expect(kept.map((item) => item.assignedEmployeeId)).toEqual(["rahul"]);
+  });
+
+  it("shows an admin who reserved an open QR without replacing the other sessions", () => {
+    const open: PaymentSession = { ...session("9", "PAY-009"), assignedEmployeeId: undefined, broadcast: true };
+    const next = applyPaymentEvent(
+      [session("1", "PAY-001"), open],
+      { type: "payment-assigned", data: { ...open, broadcast: false, assignedEmployeeId: "aman" } },
+      { id: "admin", role: "ADMIN" },
+    );
+    expect(next.find((item) => item.id === "9")?.assignedEmployeeId).toBe("aman");
+    expect(next.find((item) => item.id === "1")?.assignedEmployeeId).toBe("rahul");
+  });
 });
 
 describe("sse client", () => {

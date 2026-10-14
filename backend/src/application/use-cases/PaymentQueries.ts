@@ -2,7 +2,7 @@ import { PublicUser, rewardInr } from "../../domain/entities/User";
 import { PaymentSession } from "../../domain/entities/PaymentSession";
 import { PaymentStatus } from "../../domain/enums/PaymentStatus";
 import { UserRole } from "../../domain/enums/UserRole";
-import { ForbiddenError, NotFoundError } from "../../domain/errors/DomainError";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../domain/errors/DomainError";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { isTerminal } from "../../domain/services/PaymentStateMachine";
 import { toPaymentDto } from "../dto/payment.dto";
@@ -15,6 +15,9 @@ export function assertCanViewPayment(user: PublicUser, session: PaymentSession):
     return;
   }
   if (user.role === UserRole.EMPLOYEE && session.assignedEmployeeId === user.id) {
+    return;
+  }
+  if (user.role === UserRole.EMPLOYEE && session.broadcast && !session.assignedEmployeeId) {
     return;
   }
   throw new ForbiddenError();
@@ -31,6 +34,9 @@ export async function getPaymentSession(deps: PaymentUseCaseDeps, user: PublicUs
 
 export async function getPaymentQr(deps: PaymentUseCaseDeps, user: PublicUser, paymentSessionId: string) {
   const session = await getPaymentSession(deps, user, paymentSessionId);
+  if (user.role !== UserRole.ADMIN && session.assignedEmployeeId !== user.id) {
+    throw new ForbiddenError("Reserve this QR before opening it");
+  }
   if (isTerminal(session.status)) {
     return null;
   }
@@ -61,7 +67,12 @@ export function summarizeEmployeeEarnings(
 
 export async function getEmployeePayments(deps: PaymentUseCaseDeps, employeeId: string) {
   const mine = await deps.payments.listAll({ employeeId });
-  return mine.map(toPaymentDto);
+  const open = await deps.payments.listOpenBroadcasts();
+  const seen = new Set(mine.map((session) => session.id));
+  const visible = [...open.filter((session) => !seen.has(session.id)), ...mine].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+  return visible.map(toPaymentDto);
 }
 
 export async function getAdminPayments(
@@ -70,6 +81,24 @@ export async function getAdminPayments(
 ) {
   const sessions = await deps.payments.listAll(filter);
   return sessions.map(toPaymentDto);
+}
+
+export async function reservePaymentSession(
+  deps: PaymentUseCaseDeps & { users: UserRepository },
+  paymentSessionId: string,
+  employeeId: string,
+) {
+  const employee = await requireActiveEmployee(deps.users, employeeId);
+  const claimed = await deps.payments.claimIfOpen(paymentSessionId, employee.id, deps.now());
+  if (!claimed) {
+    const current = await deps.payments.findById(paymentSessionId);
+    if (!current) {
+      throw new NotFoundError();
+    }
+    throw new ConflictError("This QR was just reserved");
+  }
+  deps.events.publish({ type: "payment-assigned", data: toPaymentDto(claimed) });
+  return claimed;
 }
 
 export async function assignPaymentSession(

@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { AdminSidebar } from "./AdminSidebar";
 
 export function Layout() {
   const { user, clearSession } = useAuth();
@@ -11,6 +12,17 @@ export function Layout() {
     return <Navigate to="/dashboard" replace />;
   }
 
+  if (location.pathname.startsWith("/admin")) {
+    return (
+      <div className="flex min-h-screen bg-background text-foreground">
+        <AdminSidebar name={user.name} onSignOut={clearSession} />
+        <main className="page min-w-0 flex-1">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -19,7 +31,7 @@ export function Layout() {
           <span>{user.name}</span>
         </div>
         <nav>
-          {user.role === "ADMIN" ? null : <NavLink to="/dashboard">My sessions</NavLink>}
+          <NavLink to="/dashboard">My sessions</NavLink>
           <button type="button" onClick={clearSession}>
             Sign out
           </button>

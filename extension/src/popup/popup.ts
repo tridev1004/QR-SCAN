@@ -16,6 +16,7 @@ const email = document.querySelector<HTMLInputElement>("#email");
 const password = document.querySelector<HTMLInputElement>("#password");
 const signIn = document.querySelector<HTMLButtonElement>("#signIn");
 const signOut = document.querySelector<HTMLButtonElement>("#signOut");
+const sendQr = document.querySelector<HTMLButtonElement>("#sendQr");
 
 function setStatus(text: string, kind: "idle" | "in" | "error") {
   if (!statusNode) {
@@ -103,7 +104,7 @@ function renderEmployees() {
   const shown = activeEmployees.filter((employee) => employee.name.toLowerCase().includes(query));
   const selected = activeEmployees.find((employee) => employee.id === selectedEmployeeId);
   if (recipientLabel) {
-    recipientLabel.textContent = selected ? `Sending to ${selected.name}` : "Choose who receives the QR";
+    recipientLabel.textContent = selected ? `Sending to ${selected.name}` : "All active employees can reserve";
   }
   if (employeeCount) {
     employeeCount.textContent =
@@ -129,6 +130,29 @@ function renderEmployees() {
     return;
   }
   const fragment = document.createDocumentFragment();
+  if (!query) {
+    const everyone = document.createElement("label");
+    everyone.className = "employee";
+    const everyoneInput = document.createElement("input");
+    everyoneInput.type = "radio";
+    everyoneInput.name = "employee";
+    everyoneInput.value = "";
+    everyoneInput.checked = !selectedEmployeeId;
+    everyoneInput.addEventListener("change", () => {
+      selectedEmployeeId = "";
+      employeeSignature = `|${activeEmployees.map((item) => `${item.id}:${item.name}`).join(",")}`;
+      if (recipientLabel) recipientLabel.textContent = "All active employees can reserve";
+      void chrome.storage.session.remove(["selectedEmployeeId", "selectedEmployeeName"]);
+    });
+    const avatar = document.createElement("span");
+    avatar.className = "avatar";
+    avatar.textContent = "All";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = "All active employees";
+    everyone.append(everyoneInput, avatar, name);
+    fragment.append(everyone);
+  }
   for (const employee of shown) {
     const label = document.createElement("label");
     label.className = "employee";
@@ -157,6 +181,19 @@ function renderEmployees() {
 
 employeeSearch?.addEventListener("input", () => {
   renderEmployees();
+});
+
+sendQr?.addEventListener("click", () => {
+  if (!sendQr) {
+    return;
+  }
+  sendQr.disabled = true;
+  sendQr.textContent = "Sending…";
+  chrome.runtime.sendMessage({ type: "SEND_QR" }, () => {
+    sendQr.disabled = false;
+    sendQr.textContent = "Send";
+    void refresh();
+  });
 });
 
 async function loadEmployees() {

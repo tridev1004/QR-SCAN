@@ -5,6 +5,10 @@ import { ConflictError } from "../domain/errors/DomainError";
 import { PaymentSessionRepository } from "../domain/repositories/PaymentSessionRepository";
 import { isActive } from "../domain/services/PaymentStateMachine";
 
+function isOpenBroadcast(session: PaymentSession): boolean {
+  return session.broadcast === true && !session.assignedEmployeeId && isActive(session.status);
+}
+
 export class InMemoryPaymentSessionRepository implements PaymentSessionRepository {
   private readonly sessions = new Map<string, PaymentSession>();
   private seq = 0;
@@ -42,6 +46,33 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
   async update(session: PaymentSession): Promise<PaymentSession> {
     this.sessions.set(session.id, session);
     return session;
+  }
+
+  async claimIfOpen(id: string, employeeId: string, now: Date): Promise<PaymentSession | null> {
+    const current = this.sessions.get(id);
+    if (!current) {
+      return null;
+    }
+    if (current.assignedEmployeeId === employeeId) {
+      return current;
+    }
+    if (!isOpenBroadcast(current)) {
+      return null;
+    }
+    const claimed: PaymentSession = {
+      ...current,
+      assignedEmployeeId: employeeId,
+      broadcast: false,
+      updatedAt: now,
+    };
+    this.sessions.set(id, claimed);
+    return claimed;
+  }
+
+  async listOpenBroadcasts(): Promise<PaymentSession[]> {
+    return [...this.sessions.values()]
+      .filter((item) => isOpenBroadcast(item))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async listForEmployee(employeeId: string): Promise<PaymentSession[]> {

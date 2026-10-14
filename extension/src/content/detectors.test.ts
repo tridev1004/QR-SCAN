@@ -101,6 +101,14 @@ describe("status detector", () => {
     expect(detectSuccess(document)).toBe(false);
   });
 
+  it("treats the billing setup screen as failure", () => {
+    const document = page(
+      "<h1>Billing setup can't be completed</h1><div>We were unable to set up your account. Learn more about fixing your account [OR_BACR2_59]</div><button>Ok</button>",
+    );
+    expect(detectFailure(document)).toBe(true);
+    expect(detectSuccess(document)).toBe(false);
+  });
+
   it("matches an indicator only when one is configured", () => {
     const document = page("<h1>Payment received</h1>");
     expect(matchesAnyIndicator(document, [])).toBe(false);
@@ -197,6 +205,26 @@ describe("observer", () => {
     document.body.innerHTML =
       "<h1>Transaction wasn't completed</h1><p>Something went wrong with this payment.</p>";
     document.body.setAttribute("data-step", "failed");
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(sent).toEqual([true]);
+    stop();
+  });
+
+  it("reports failure when Google says billing setup cannot be completed", async () => {
+    const document = page(qrScreen);
+    const sent: boolean[] = [];
+    const stop = startGoogleCloudObserver({
+      document,
+      debounceMs: 20,
+      now: () => Date.parse("2026-10-01T12:00:00.000Z"),
+      send: (message) => {
+        if (message.type === "PAGE_STATUS") sent.push(message.payload.failure);
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    document.body.innerHTML =
+      "<h1>Billing setup can't be completed</h1><div>We were unable to set up your account. [OR_BACR2_59]</div>";
+    document.body.setAttribute("data-step", "billing-failed");
     await new Promise((resolve) => setTimeout(resolve, 80));
     expect(sent).toEqual([true]);
     stop();

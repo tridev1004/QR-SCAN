@@ -63,6 +63,9 @@ export const paymentApi = {
       throw error;
     }
   },
+  reserve(id: string): Promise<{ payment: PaymentSession }> {
+    return api(`/api/payments/${id}/reserve`, { method: "POST" });
+  },
   assign(id: string, employeeId: string): Promise<{ payment: PaymentSession }> {
     return api(`/api/admin/payments/${id}/assign`, {
       method: "PATCH",

@@ -17,6 +17,15 @@ export function canReceivePaymentEvent(user: PublicUser, event: PaymentStreamEve
   if (user.role !== UserRole.EMPLOYEE) {
     return false;
   }
+  if (event.type === "payment-assigned") {
+    return true;
+  }
+  if (!event.data.assignedEmployeeId) {
+    if (event.type === "payment-created") {
+      return event.data.broadcast === true;
+    }
+    return event.type === "payment-status";
+  }
   return event.data.assignedEmployeeId === user.id;
 }
 

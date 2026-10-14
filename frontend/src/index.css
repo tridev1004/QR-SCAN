@@ -67,7 +67,7 @@ button, .card-link {
   cursor: pointer;
 }
 
-a { color: var(--teal-dark); }
+a:not([data-slot="button"]) { color: var(--teal-dark); }
 
 button:not([data-slot="button"]) {
   border: 1px solid var(--teal);

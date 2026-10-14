@@ -40,7 +40,8 @@ export function createApiClient(fetchImpl: typeof fetch = fetch) {
       config: ApiConfig,
       body: {
         localSessionId: string;
-        assignedEmployeeId: string;
+        assignedEmployeeId?: string;
+        broadcast?: boolean;
         qrFingerprint: string;
         qrImage: string;
         expiresAt: string;
