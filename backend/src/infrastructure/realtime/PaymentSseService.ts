@@ -40,7 +40,7 @@ export class PaymentSseService {
     res.flushHeaders?.();
     res.write(": connected\n\n");
 
-    let unsubscribe = () => undefined;
+    let unsubscribe: () => void = () => undefined;
     let ping: ReturnType<typeof setInterval> | undefined;
     const stop = () => {
       if (ping) clearInterval(ping);
