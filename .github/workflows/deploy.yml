@@ -18,53 +18,34 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    environment: EC2_HOST
+    runs-on: self-hosted
     steps:
-      - name: Check the server login
-        env:
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${EC2_SSH_KEY}" ]; then
-            echo "Add the EC2_SSH_KEY secret under Settings → Secrets and variables → Actions."
-            echo "Use the private key that logs into ubuntu@13.236.2.39, including the BEGIN and END lines."
-            exit 1
-          fi
       - name: Build on the server and reload
-        uses: appleboy/ssh-action@v1.2.0
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-        with:
-          host: ${{ secrets.EC2_HOST || '13.236.2.39' }}
-          username: ${{ secrets.EC2_USER || 'ubuntu' }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 30m
-          script_stop: true
-          envs: DEPLOY_PATH
-          script: |
-            set -euo pipefail
-            if [ -s "$HOME/.nvm/nvm.sh" ]; then
-              . "$HOME/.nvm/nvm.sh"
-            fi
-            export PATH="$PATH:/usr/local/bin:/usr/bin"
-            app=""
-            if [ -n "${DEPLOY_PATH:-}" ] && [ -d "${DEPLOY_PATH}/.git" ]; then
-              app="$DEPLOY_PATH"
-            else
-              for dir in "$HOME/QR-SCAN" "$HOME/QRSCAN" "/home/ubuntu/QR-SCAN" "/var/www/QR-SCAN" "/opt/QR-SCAN"; do
-                if [ -d "$dir/.git" ]; then
-                  app="$dir"
-                  break
-                fi
-              done
-            fi
-            if [ -z "$app" ]; then
-              echo "Could not find the app checkout. Set the DEPLOY_PATH repository variable."
-              exit 1
-            fi
-            cd "$app"
-            git fetch origin main
-            git checkout main
-            git reset --hard origin/main
-            bash deploy/update.sh
+        run: |
+          set -euo pipefail
+          if [ -s "$HOME/.nvm/nvm.sh" ]; then
+            . "$HOME/.nvm/nvm.sh"
+          fi
+          export PATH="$PATH:/usr/local/bin:/usr/bin"
+          app=""
+          if [ -n "${DEPLOY_PATH:-}" ] && [ -d "${DEPLOY_PATH}/.git" ]; then
+            app="$DEPLOY_PATH"
+          else
+            for dir in "$HOME/QR-SCAN" "$HOME/QRSCAN" "/home/ubuntu/QR-SCAN" "/var/www/QR-SCAN" "/opt/QR-SCAN"; do
+              if [ -d "$dir/.git" ]; then
+                app="$dir"
+                break
+              fi
+            done
+          fi
+          if [ -z "$app" ]; then
+            echo "Could not find the app checkout. Set the DEPLOY_PATH repository variable."
+            exit 1
+          fi
+          cd "$app"
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          bash deploy/update.sh
