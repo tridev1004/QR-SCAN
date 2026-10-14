@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
+    "release": "node build.mjs --release",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

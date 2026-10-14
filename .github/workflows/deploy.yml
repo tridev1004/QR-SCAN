@@ -1,0 +1,59 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build on the server and reload
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          script_stop: true
+          envs: DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            if [ -s "$HOME/.nvm/nvm.sh" ]; then
+              . "$HOME/.nvm/nvm.sh"
+            fi
+            export PATH="$PATH:/usr/local/bin:/usr/bin"
+            app=""
+            if [ -n "${DEPLOY_PATH:-}" ] && [ -d "${DEPLOY_PATH}/.git" ]; then
+              app="$DEPLOY_PATH"
+            else
+              for dir in "$HOME/QR-SCAN" "$HOME/QRSCAN" "/home/ubuntu/QR-SCAN" "/var/www/QR-SCAN" "/opt/QR-SCAN"; do
+                if [ -d "$dir/.git" ]; then
+                  app="$dir"
+                  break
+                fi
+              done
+            fi
+            if [ -z "$app" ]; then
+              echo "Could not find the app checkout. Set the DEPLOY_PATH repository variable."
+              exit 1
+            fi
+            cd "$app"
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            bash deploy/update.sh

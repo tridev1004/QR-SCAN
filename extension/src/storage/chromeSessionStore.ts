@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../shared/apiBase";
 import { TrackedSession } from "../shared/types";
 import { SessionRegistry } from "./sessionStore";
 
@@ -14,9 +15,9 @@ export async function saveTrackedSessions(registry: SessionRegistry): Promise<vo
 }
 
 export async function loadApiConfig(): Promise<{ apiBaseUrl: string; token: string } | null> {
-  const stored = await chrome.storage.session.get(["apiBaseUrl", "token"]);
-  if (typeof stored.apiBaseUrl !== "string" || typeof stored.token !== "string" || !stored.token) {
+  const stored = await chrome.storage.session.get(["token"]);
+  if (typeof stored.token !== "string" || !stored.token) {
     return null;
   }
-  return { apiBaseUrl: stored.apiBaseUrl.replace(/\/$/, ""), token: stored.token };
+  return { apiBaseUrl: API_BASE_URL, token: stored.token };
 }

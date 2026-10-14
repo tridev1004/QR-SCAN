@@ -1,92 +1,191 @@
 import { labelForScan } from "../content/scanReport";
+import { API_BASE_URL } from "../shared/apiBase";
 import { injectWatcher, isWatchedUrl } from "../shared/injectWatcher";
 import { ScanReport } from "../shared/messages";
 
 const statusNode = document.querySelector<HTMLElement>("#status");
+const signInForm = document.querySelector<HTMLFormElement>("#signInForm");
 const recipientsNode = document.querySelector<HTMLElement>("#recipients");
+const recipientLabel = document.querySelector<HTMLElement>("#recipientLabel");
+const employeeCount = document.querySelector<HTMLElement>("#employeeCount");
+const employeeSearch = document.querySelector<HTMLInputElement>("#employeeSearch");
 const employeeList = document.querySelector<HTMLElement>("#employeeList");
 const watchNode = document.querySelector<HTMLElement>("#watch");
 const captureNode = document.querySelector<HTMLElement>("#capture");
-const apiBaseUrl = document.querySelector<HTMLInputElement>("#apiBaseUrl");
 const email = document.querySelector<HTMLInputElement>("#email");
 const password = document.querySelector<HTMLInputElement>("#password");
 const signIn = document.querySelector<HTMLButtonElement>("#signIn");
 const signOut = document.querySelector<HTMLButtonElement>("#signOut");
 
-async function refresh() {
-  const stored = await chrome.storage.session.get(["apiBaseUrl", "token", "userName", "lastCapture"]);
-  if (typeof stored.apiBaseUrl === "string" && apiBaseUrl) {
-    apiBaseUrl.value = stored.apiBaseUrl;
+function setStatus(text: string, kind: "idle" | "in" | "error") {
+  if (!statusNode) {
+    return;
   }
-  if (statusNode) {
-    statusNode.textContent =
-      typeof stored.userName === "string" && stored.token ? `Signed in as ${stored.userName}` : "Not signed in";
+  statusNode.textContent = text;
+  statusNode.classList.toggle("is-in", kind === "in");
+  statusNode.classList.toggle("is-error", kind === "error");
+}
+
+async function refresh() {
+  const stored = await chrome.storage.session.get(["token", "userName", "lastCapture"]);
+  const signedIn = typeof stored.userName === "string" && typeof stored.token === "string" && stored.token.length > 0;
+  setStatus(signedIn ? `Signed in as ${stored.userName}` : "Not signed in", signedIn ? "in" : "idle");
+  if (signInForm) {
+    signInForm.hidden = signedIn;
   }
   if (captureNode) {
     captureNode.textContent = typeof stored.lastCapture === "string" ? stored.lastCapture : "";
   }
 }
 
-signIn?.addEventListener("click", () => {
+signInForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
   void (async () => {
-    const base = (apiBaseUrl?.value ?? "").replace(/\/$/, "");
-    const response = await fetch(`${base}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email?.value ?? "", password: password?.value ?? "", portal: "admin" }),
-    });
-    const body = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      token?: string;
-      user?: { name?: string; role?: string };
-    };
-    if (!response.ok || !body.token || !body.user) {
-      if (statusNode) statusNode.textContent = body.error ?? "Login failed";
-      return;
+    if (signIn) signIn.disabled = true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email?.value ?? "", password: password?.value ?? "", portal: "admin" }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        token?: string;
+        user?: { name?: string; role?: string };
+      };
+      if (!response.ok || !body.token || !body.user) {
+        setStatus(body.error ?? "Login failed", "error");
+        return;
+      }
+      if (body.user.role !== "ADMIN") {
+        setStatus("Sign in with an admin account", "error");
+        return;
+      }
+      await chrome.storage.session.remove(["apiBaseUrl"]);
+      await chrome.storage.session.set({
+        token: body.token,
+        userName: body.user.name ?? "Admin",
+      });
+      if (password) password.value = "";
+      await refresh();
+      await loadEmployees();
+    } finally {
+      if (signIn) signIn.disabled = false;
     }
-    if (body.user.role !== "ADMIN") {
-      if (statusNode) statusNode.textContent = "Sign in with an admin account";
-      return;
-    }
-    await chrome.storage.session.set({
-      apiBaseUrl: base,
-      token: body.token,
-      userName: body.user.name ?? "Admin",
-    });
-    if (password) password.value = "";
-    await refresh();
-    await loadEmployees();
   })();
 });
 
 signOut?.addEventListener("click", () => {
+  if (employeeSearch) employeeSearch.value = "";
   void chrome.storage.session
-    .remove(["token", "userName", "selectedEmployeeId", "selectedEmployeeName"])
+    .remove(["apiBaseUrl", "token", "userName", "selectedEmployeeId", "selectedEmployeeName"])
     .then(refresh)
     .then(loadEmployees);
 });
 
+type ListedEmployee = { id: string; name: string };
+
 let employeeSignature = "";
+let activeEmployees: ListedEmployee[] = [];
+let selectedEmployeeId = "";
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "");
+  return letters.join("") || "?";
+}
+
+function renderEmployees() {
+  if (!employeeList) {
+    return;
+  }
+  const query = (employeeSearch?.value ?? "").trim().toLowerCase();
+  const shown = activeEmployees.filter((employee) => employee.name.toLowerCase().includes(query));
+  const selected = activeEmployees.find((employee) => employee.id === selectedEmployeeId);
+  if (recipientLabel) {
+    recipientLabel.textContent = selected ? `Sending to ${selected.name}` : "Choose who receives the QR";
+  }
+  if (employeeCount) {
+    employeeCount.textContent =
+      activeEmployees.length === 0
+        ? ""
+        : query
+          ? `${shown.length} of ${activeEmployees.length}`
+          : `${activeEmployees.length} active`;
+  }
+  employeeList.replaceChildren();
+  if (activeEmployees.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No active employees. Create one on the admin accounts page.";
+    employeeList.append(empty);
+    return;
+  }
+  if (shown.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No employees match that search.";
+    employeeList.append(empty);
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  for (const employee of shown) {
+    const label = document.createElement("label");
+    label.className = "employee";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "employee";
+    input.value = employee.id;
+    input.checked = employee.id === selectedEmployeeId;
+    input.addEventListener("change", () => {
+      selectedEmployeeId = employee.id;
+      employeeSignature = `${employee.id}|${activeEmployees.map((item) => `${item.id}:${item.name}`).join(",")}`;
+      if (recipientLabel) recipientLabel.textContent = `Sending to ${employee.name}`;
+      void chrome.storage.session.set({ selectedEmployeeId: employee.id, selectedEmployeeName: employee.name });
+    });
+    const avatar = document.createElement("span");
+    avatar.className = "avatar";
+    avatar.textContent = initials(employee.name);
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = employee.name;
+    label.append(input, avatar, name);
+    fragment.append(label);
+  }
+  employeeList.append(fragment);
+}
+
+employeeSearch?.addEventListener("input", () => {
+  renderEmployees();
+});
 
 async function loadEmployees() {
   if (!recipientsNode || !employeeList) {
     return;
   }
-  const stored = await chrome.storage.session.get(["apiBaseUrl", "token", "selectedEmployeeId"]);
+  const stored = await chrome.storage.session.get(["token", "selectedEmployeeId"]);
   if (typeof stored.token !== "string" || !stored.token) {
     employeeSignature = "";
+    activeEmployees = [];
+    selectedEmployeeId = "";
     recipientsNode.hidden = true;
     employeeList.replaceChildren();
     return;
   }
-  const base = (typeof stored.apiBaseUrl === "string" ? stored.apiBaseUrl : "https://api.chathere.site").replace(/\/$/, "");
-  const response = await fetch(`${base}/api/admin/employees`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/employees`, {
     headers: { Authorization: `Bearer ${stored.token}` },
   });
   if (!response.ok) {
     employeeSignature = "";
+    activeEmployees = [];
     recipientsNode.hidden = false;
-    employeeList.textContent = "Could not load employees. Sign in again.";
+    if (recipientLabel) recipientLabel.textContent = "Employees";
+    if (employeeCount) employeeCount.textContent = "";
+    employeeList.replaceChildren();
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "Could not load employees. Sign in again.";
+    employeeList.append(empty);
     return;
   }
   const body = (await response.json()) as { employees?: Array<{ id: string; name: string; active: boolean }> };
@@ -97,29 +196,15 @@ async function loadEmployees() {
     await chrome.storage.session.remove(["selectedEmployeeId", "selectedEmployeeName"]);
   }
   recipientsNode.hidden = false;
-  const signature = `${stillThere ? selected : ""}|${active.map((employee) => `${employee.id}:${employee.name}`).join(",")}`;
+  const nextSelected = stillThere ? selected : "";
+  const signature = `${nextSelected}|${active.map((employee) => `${employee.id}:${employee.name}`).join(",")}`;
   if (signature === employeeSignature) {
     return;
   }
   employeeSignature = signature;
-  employeeList.replaceChildren();
-  if (active.length === 0) {
-    employeeList.textContent = "No active employees. Create one on the admin accounts page.";
-    return;
-  }
-  for (const employee of active) {
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    input.type = "radio";
-    input.name = "employee";
-    input.value = employee.id;
-    input.checked = employee.id === selected;
-    input.addEventListener("change", () => {
-      void chrome.storage.session.set({ selectedEmployeeId: employee.id, selectedEmployeeName: employee.name });
-    });
-    label.append(input, document.createTextNode(employee.name));
-    employeeList.append(label);
-  }
+  activeEmployees = active;
+  selectedEmployeeId = nextSelected;
+  renderEmployees();
 }
 
 function originOf(url: string): string {

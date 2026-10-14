@@ -7,30 +7,33 @@
   </head>
   <body>
     <main>
-      <h1>UPI QR Monitor</h1>
-      <p id="status">Not signed in</p>
+      <header>
+        <p class="eyebrow">UPI QR</p>
+        <h1>Monitor</h1>
+      </header>
+      <p id="status" class="status">Not signed in</p>
+      <p id="watch" class="note">Checking this tab…</p>
+      <p id="capture" class="note"></p>
+      <form id="signInForm">
+        <label>
+          Email
+          <input id="email" type="email" autocomplete="username" placeholder="Admin email" required />
+        </label>
+        <label>
+          Password
+          <input id="password" type="password" autocomplete="current-password" placeholder="Password" required />
+        </label>
+        <button id="signIn" type="submit">Sign in</button>
+      </form>
       <section id="recipients" hidden>
-        <p id="recipientLabel">Send the QR to</p>
+        <div class="recipient-head">
+          <p id="recipientLabel">Choose who receives the QR</p>
+          <p id="employeeCount"></p>
+        </div>
+        <input id="employeeSearch" type="search" placeholder="Search employees" autocomplete="off" />
         <div id="employeeList"></div>
-      </section>
-      <p id="watch">Checking this tab…</p>
-      <p id="capture"></p>
-      <label>
-        Backend URL
-        <input id="apiBaseUrl" value="https://api.chathere.site" />
-      </label>
-      <label>
-        Email
-        <input id="email" type="email" value="admin@company.local" autocomplete="username" />
-      </label>
-      <label>
-        Password
-        <input id="password" type="password" autocomplete="current-password" />
-      </label>
-      <div class="actions">
-        <button id="signIn" type="button">Sign in</button>
         <button id="signOut" type="button">Sign out</button>
-      </div>
+      </section>
     </main>
     <script src="dist/popup.js"></script>
   </body>
