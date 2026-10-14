@@ -19,14 +19,25 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: EC2_HOST
     steps:
+      - name: Check the server login
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EC2_SSH_KEY}" ]; then
+            echo "Add the EC2_SSH_KEY secret under Settings → Secrets and variables → Actions."
+            echo "Use the private key that logs into ubuntu@13.236.2.39, including the BEGIN and END lines."
+            exit 1
+          fi
       - name: Build on the server and reload
         uses: appleboy/ssh-action@v1.2.0
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          host: ${{ secrets.EC2_HOST || '13.236.2.39' }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 30m
           script_stop: true
