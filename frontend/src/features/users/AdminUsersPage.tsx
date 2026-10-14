@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { paymentApi } from "../payments/api/paymentApi";
 import { formatInr } from "../payments/state/money";
@@ -11,22 +12,20 @@ export function AdminUsersPage() {
   const [total, setTotal] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({});
   const [rewardDrafts, setRewardDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkPrice, setBulkPrice] = useState("40");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const qRef = useRef("");
+  const { rosterVersion } = useOutletContext<{ rosterVersion: number }>();
+  const seenRoster = useRef(rosterVersion);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const nextOffset = useRef(0);
   const loadingMoreRef = useRef(false);
@@ -35,7 +34,7 @@ export function AdminUsersPage() {
 
   async function loadFirst(query = qRef.current) {
     const page = await paymentApi.listEmployees({ limit: PAGE_SIZE, offset: 0, q: query || undefined });
-    setEmployees(page.employees);
+    setEmployees(sortEmployees(page.employees));
     setTotal(page.total ?? page.employees.length);
     setActiveCount(page.activeCount ?? page.employees.filter((employee) => employee.active).length);
     setHasMore(page.hasMore ?? false);
@@ -56,7 +55,7 @@ export function AdminUsersPage() {
       });
       setEmployees((current) => {
         const seen = new Set(current.map((employee) => employee.id));
-        return [...current, ...page.employees.filter((employee) => !seen.has(employee.id))];
+        return sortEmployees([...current, ...page.employees.filter((employee) => !seen.has(employee.id))]);
       });
       setTotal(page.total ?? 0);
       setActiveCount(page.activeCount ?? 0);
@@ -97,6 +96,18 @@ export function AdminUsersPage() {
   }, [q]);
 
   useEffect(() => {
+    if (seenRoster.current === rosterVersion) {
+      return;
+    }
+    seenRoster.current = rosterVersion;
+    loadFirst()
+      .then(() => setNotice("Employee created"))
+      .catch((caught: unknown) => {
+        setError(caught instanceof Error ? caught.message : "Unable to load accounts");
+      });
+  }, [rosterVersion]);
+
+  useEffect(() => {
     const node = sentinelRef.current;
     if (!node || !hasMore) {
       return;
@@ -115,24 +126,6 @@ export function AdminUsersPage() {
 
   function patchEmployee(id: string, patch: Partial<Employee>) {
     setEmployees((current) => current.map((employee) => (employee.id === id ? { ...employee, ...patch } : employee)));
-  }
-
-  async function onCreate(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await paymentApi.createEmployee({ name, email, password });
-      setName("");
-      setEmail("");
-      setPassword("");
-      setNotice("Employee created");
-      await loadFirst();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not create the account");
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function saveReward(employee: Employee) {
@@ -288,61 +281,19 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <p className="eyebrow">Employees</p>
         <h1>Accounts</h1>
-        <p className="muted">New accounts start at ₹40 per passed QR. You can change that for one person or for many.</p>
-        <label className="mt-3 grid max-w-xs gap-1 text-sm text-muted-foreground">
-          Search employees
-          <input
-            className="h-8 rounded-lg border border-input bg-background px-2 text-foreground"
-            value={search}
-            placeholder="Name or email"
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </label>
+        <p className="muted">Names stay in alphabetical order. Add an account from the sidebar.</p>
       </div>
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="grid gap-1 text-sm text-muted-foreground">
-            ₹ per passed QR
-            <input
-              className="h-8 w-28 rounded-lg border border-input bg-background px-2 text-foreground"
-              inputMode="numeric"
-              value={bulkPrice}
-              onChange={(event) => setBulkPrice(event.target.value)}
-            />
-          </label>
-          <Button type="button" disabled={bulkBusy || selected.size === 0} onClick={() => void applyPrice(false)}>
-            Apply to selected ({selected.size})
-          </Button>
-          <Button type="button" variant="secondary" disabled={bulkBusy} onClick={() => void applyPrice(true)}>
-            Apply to all
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="destructive" disabled={bulkBusy || selected.size === 0} onClick={() => void deleteSelected()}>
-            Delete selected
-          </Button>
-          <Button type="button" variant="outline" disabled={bulkBusy} onClick={() => void deleteInactive()}>
-            Delete all inactive
-          </Button>
-        </div>
-      </div>
-      <form className="panel create-grid" onSubmit={onCreate}>
-        <label>
-          Name
-          <input value={name} onChange={(event) => setName(event.target.value)} required />
-        </label>
-        <label>
-          Email
-          <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />
-        </label>
-        <label>
-          Password
-          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" minLength={6} required />
-        </label>
-        <button type="submit" disabled={saving}>
-          {saving ? "Creating…" : "Add employee"}
-        </button>
-      </form>
+      <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
+      <div>
+      <label className="mb-3 grid max-w-xs gap-1 text-sm text-muted-foreground">
+        Search
+        <input
+          className="h-8 rounded-lg border border-input bg-background px-2 text-foreground"
+          value={search}
+          placeholder="Name or email"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </label>
       <p className="muted employee-summary">
         {activeCount} active of {total} {total === 1 ? "employee" : "employees"} can receive a QR.
       </p>
@@ -435,6 +386,39 @@ export function AdminUsersPage() {
           {loadingMore ? "Loading more employees…" : ""}
         </div>
       ) : null}
+      </div>
+      <aside className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <div>
+          <h2 className="text-sm font-medium text-foreground">Payout</h2>
+          <p className="text-xs text-muted-foreground">Set the same amount for the people you select, or for every employee.</p>
+        </div>
+        <label className="grid gap-1 text-sm text-muted-foreground">
+          ₹ per passed QR
+          <input
+            className="h-8 w-28 rounded-lg border border-input bg-background px-2 text-foreground"
+            inputMode="numeric"
+            value={bulkPrice}
+            onChange={(event) => setBulkPrice(event.target.value)}
+          />
+        </label>
+        <Button type="button" disabled={bulkBusy || selected.size === 0} onClick={() => void applyPrice(false)}>
+          Apply to selected ({selected.size})
+        </Button>
+        <Button type="button" variant="secondary" disabled={bulkBusy} onClick={() => void applyPrice(true)}>
+          Apply to all
+        </Button>
+        <Button type="button" variant="destructive" disabled={bulkBusy || selected.size === 0} onClick={() => void deleteSelected()}>
+          Delete selected
+        </Button>
+        <Button type="button" variant="outline" disabled={bulkBusy} onClick={() => void deleteInactive()}>
+          Delete all inactive
+        </Button>
+      </aside>
+      </div>
     </div>
   );
+}
+
+function sortEmployees(employees: Employee[]): Employee[] {
+  return [...employees].sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
 }

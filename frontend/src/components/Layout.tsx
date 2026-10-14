@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { AdminSidebar } from "./AdminSidebar";
@@ -5,6 +6,7 @@ import { AdminSidebar } from "./AdminSidebar";
 export function Layout() {
   const { user, clearSession } = useAuth();
   const location = useLocation();
+  const [rosterVersion, setRosterVersion] = useState(0);
   if (!user) {
     return <Navigate to={location.pathname.startsWith("/admin") ? "/admin/login" : "/login"} replace />;
   }
@@ -15,9 +17,9 @@ export function Layout() {
   if (location.pathname.startsWith("/admin")) {
     return (
       <div className="flex min-h-screen bg-background text-foreground">
-        <AdminSidebar name={user.name} onSignOut={clearSession} />
+        <AdminSidebar name={user.name} onSignOut={clearSession} onEmployeeCreated={() => setRosterVersion((current) => current + 1)} />
         <main className="page min-w-0 flex-1">
-          <Outlet />
+          <Outlet context={{ rosterVersion }} />
         </main>
       </div>
     );
