@@ -12,7 +12,7 @@ export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
   findByVerificationTokenHash(tokenHash: string): Promise<User | null>;
   listByRole(role: UserRole): Promise<User[]>;
-  listByRolePage(role: UserRole, offset: number, limit: number): Promise<UserPage>;
+  listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage>;
   create(user: User): Promise<User>;
   update(user: User): Promise<User>;
   delete(id: string): Promise<void>;

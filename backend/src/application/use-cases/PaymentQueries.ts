@@ -75,12 +75,51 @@ export async function getEmployeePayments(deps: PaymentUseCaseDeps, employeeId: 
   return visible.map(toPaymentDto);
 }
 
+export async function getEmployeeDashboard(
+  deps: PaymentUseCaseDeps,
+  employeeId: string,
+  page: { offset: number; limit: number; q?: string },
+  successRewardInr: number,
+) {
+  const [assigned, open, history, counts] = await Promise.all([
+    deps.payments.listPage({ employeeId, scope: "active" }, 0, 50),
+    deps.payments.listOpenBroadcasts(),
+    deps.payments.listPage({ employeeId, scope: "finished", q: page.q }, page.offset, page.limit),
+    deps.payments.countOutcomes(employeeId),
+  ]);
+  const seen = new Set(assigned.sessions.map((session) => session.id));
+  const live = [...open.filter((session) => !seen.has(session.id)), ...assigned.sessions].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+  return {
+    live: live.map(toPaymentDto),
+    payments: history.sessions.map(toPaymentDto),
+    total: history.total,
+    hasMore: page.offset + history.sessions.length < history.total,
+    earnings: {
+      successRewardInr: rewardInr(successRewardInr),
+      passedCount: counts.passed,
+      failedCount: counts.failed,
+      earnedInr: counts.passed * rewardInr(successRewardInr),
+    },
+  };
+}
+
 export async function getAdminPayments(
   deps: PaymentUseCaseDeps,
   filter: Parameters<PaymentUseCaseDeps["payments"]["listAll"]>[0],
+  page?: { offset: number; limit: number },
 ) {
-  const sessions = await deps.payments.listAll(filter);
-  return sessions.map(toPaymentDto);
+  if (!page) {
+    const sessions = await deps.payments.listAll(filter);
+    return { payments: sessions.map(toPaymentDto), total: sessions.length, hasMore: false };
+  }
+  const result = await deps.payments.listPage(filter, page.offset, page.limit);
+  return {
+    payments: result.sessions.map(toPaymentDto),
+    total: result.total,
+    hasMore: page.offset + result.sessions.length < result.total,
+  };
 }
 
 export async function reservePaymentSession(

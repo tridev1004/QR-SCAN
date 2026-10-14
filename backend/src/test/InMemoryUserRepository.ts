@@ -27,8 +27,8 @@ export class InMemoryUserRepository implements UserRepository {
     return this.sortedByRole(role);
   }
 
-  async listByRolePage(role: UserRole, offset: number, limit: number): Promise<UserPage> {
-    const users = this.sortedByRole(role);
+  async listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage> {
+    const users = this.sortedByRole(role, q);
     return {
       users: users.slice(offset, offset + limit),
       total: users.length,
@@ -36,9 +36,11 @@ export class InMemoryUserRepository implements UserRepository {
     };
   }
 
-  private sortedByRole(role: UserRole): User[] {
+  private sortedByRole(role: UserRole, q?: string): User[] {
+    const needle = q?.trim().toLowerCase();
     return [...this.users.values()]
       .filter((user) => user.role === role)
+      .filter((user) => !needle || user.name.toLowerCase().includes(needle) || user.email.toLowerCase().includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   }
 

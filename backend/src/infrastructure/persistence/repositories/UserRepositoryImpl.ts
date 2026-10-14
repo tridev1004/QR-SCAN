@@ -71,8 +71,13 @@ export class UserRepositoryImpl implements UserRepository {
     return docs.map(toEntity);
   }
 
-  async listByRolePage(role: UserRole, offset: number, limit: number): Promise<UserPage> {
-    const filter = { role };
+  async listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage> {
+    const filter: Record<string, unknown> = { role };
+    const needle = q?.trim();
+    if (needle) {
+      const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ name: pattern }, { email: pattern }];
+    }
     const [docs, total, activeCount] = await Promise.all([
       UserModel.find(filter).sort({ name: 1, _id: 1 }).skip(offset).limit(limit).lean(),
       UserModel.countDocuments(filter),

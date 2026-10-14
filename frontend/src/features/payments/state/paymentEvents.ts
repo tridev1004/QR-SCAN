@@ -29,6 +29,27 @@ export function statusLabel(status: PaymentSession["status"]): string {
   }
 }
 
+export function mergeLivePayments(
+  server: PaymentSession[],
+  local: PaymentSession[],
+  keepMissing: boolean,
+): PaymentSession[] {
+  const byId = new Map(server.map((item) => [item.id, item]));
+  for (const item of local) {
+    const known = byId.get(item.id);
+    if (!known) {
+      if (keepMissing && !isTerminal(item.status)) {
+        byId.set(item.id, item);
+      }
+      continue;
+    }
+    if (Date.parse(item.updatedAt) > Date.parse(known.updatedAt)) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
 export function applyPaymentEvent(
   sessions: PaymentSession[],
   event: PaymentStreamEvent,

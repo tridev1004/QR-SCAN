@@ -89,6 +89,23 @@ export const bulkDeleteSchema = z
 export const employeeListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => value || undefined),
+});
+
+export const paymentListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => value || undefined),
 });
 
 export const createPaymentSchema = z
@@ -134,5 +151,13 @@ export const adminQuerySchema = z.object({
   employeeId: z.string().min(1).max(80).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
-  scope: z.enum(["active", "expired", "all"]).optional(),
+  scope: z.enum(["active", "expired", "finished", "all"]).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => value || undefined),
 });

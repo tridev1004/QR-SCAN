@@ -4,22 +4,43 @@ import { Employee, EmployeeEarnings, PaymentSession, PaymentStatus } from "../ty
 export interface AdminPaymentQuery {
   status?: PaymentStatus;
   employeeId?: string;
-  scope?: "active" | "expired" | "all";
+  scope?: "active" | "expired" | "finished" | "all";
+  limit?: number;
+  offset?: number;
+  q?: string;
+}
+
+export interface PaymentPage {
+  payments: PaymentSession[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface EmployeePaymentPage extends PaymentPage {
+  live: PaymentSession[];
+  earnings: EmployeeEarnings;
+}
+
+function paymentQuery(query: AdminPaymentQuery): string {
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.employeeId) params.set("employeeId", query.employeeId);
+  if (query.scope) params.set("scope", query.scope);
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  if (query.offset !== undefined) params.set("offset", String(query.offset));
+  if (query.q) params.set("q", query.q);
+  const suffix = params.size ? `?${params.toString()}` : "";
+  return suffix;
 }
 
 export const paymentApi = {
-  listMine(): Promise<{ payments: PaymentSession[]; earnings: EmployeeEarnings }> {
-    return api("/api/payments");
+  listMine(query: Pick<AdminPaymentQuery, "limit" | "offset" | "q"> = {}): Promise<EmployeePaymentPage> {
+    return api(`/api/payments${paymentQuery(query)}`);
   },
-  listAdmin(query: AdminPaymentQuery = {}): Promise<{ payments: PaymentSession[] }> {
-    const params = new URLSearchParams();
-    if (query.status) params.set("status", query.status);
-    if (query.employeeId) params.set("employeeId", query.employeeId);
-    if (query.scope) params.set("scope", query.scope);
-    const suffix = params.size ? `?${params.toString()}` : "";
-    return api(`/api/admin/payments${suffix}`);
+  listAdmin(query: AdminPaymentQuery = {}): Promise<PaymentPage> {
+    return api(`/api/admin/payments${paymentQuery(query)}`);
   },
-  listEmployees(page?: { limit: number; offset: number }): Promise<{
+  listEmployees(page?: { limit: number; offset: number; q?: string }): Promise<{
     employees: Employee[];
     total?: number;
     activeCount?: number;
@@ -29,6 +50,7 @@ export const paymentApi = {
       return api("/api/admin/employees");
     }
     const params = new URLSearchParams({ limit: String(page.limit), offset: String(page.offset) });
+    if (page.q) params.set("q", page.q);
     return api(`/api/admin/employees?${params.toString()}`);
   },
   createEmployee(input: { name: string; email: string; password: string }): Promise<{ employee: Employee }> {

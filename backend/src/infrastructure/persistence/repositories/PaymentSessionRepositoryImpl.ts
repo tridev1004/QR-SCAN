@@ -65,6 +65,7 @@ paymentSchema.index(
 paymentSchema.index({ externalSessionId: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ assignedEmployeeId: 1, createdAt: -1 });
 paymentSchema.index({ status: 1, expiresAt: 1 });
+paymentSchema.index({ code: 1 });
 
 const PaymentModel: Model<PaymentDocument> =
   (mongoose.models.PaymentSession as Model<PaymentDocument> | undefined) ??
@@ -197,19 +198,29 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
   }
 
   async listAll(filter: PaymentListFilter): Promise<PaymentSession[]> {
-    const query: Record<string, unknown> = {};
-    if (filter.status) query.status = filter.status;
-    if (filter.employeeId) query.assignedEmployeeId = filter.employeeId;
-    if (filter.from || filter.to) {
-      query.createdAt = {
-        ...(filter.from ? { $gte: filter.from } : {}),
-        ...(filter.to ? { $lte: filter.to } : {}),
-      };
-    }
-    if (filter.scope === "active") query.status = { $in: [...ACTIVE_STATUSES] };
-    if (filter.scope === "expired") query.status = PaymentStatus.EXPIRED;
-    const docs = await PaymentModel.find(query).sort({ createdAt: -1 }).limit(200).lean();
+    const docs = await PaymentModel.find(paymentQuery(filter)).sort({ createdAt: -1 }).limit(200).lean();
     return docs.map(toEntity);
+  }
+
+  async listPage(
+    filter: PaymentListFilter,
+    offset: number,
+    limit: number,
+  ): Promise<{ sessions: PaymentSession[]; total: number }> {
+    const query = paymentQuery(filter);
+    const [docs, total] = await Promise.all([
+      PaymentModel.find(query).sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
+      PaymentModel.countDocuments(query),
+    ]);
+    return { sessions: docs.map(toEntity), total };
+  }
+
+  async countOutcomes(employeeId: string): Promise<{ passed: number; failed: number }> {
+    const [passed, failed] = await Promise.all([
+      PaymentModel.countDocuments({ assignedEmployeeId: employeeId, status: PaymentStatus.SUCCESS }),
+      PaymentModel.countDocuments({ assignedEmployeeId: employeeId, status: PaymentStatus.FAILED }),
+    ]);
+    return { passed, failed };
   }
 
   async findDueForExpiry(now: Date): Promise<PaymentSession[]> {
@@ -228,4 +239,27 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
     ).lean();
     return `PAY-${String(counter?.seq ?? 1).padStart(3, "0")}`;
   }
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function paymentQuery(filter: PaymentListFilter): Record<string, unknown> {
+  const query: Record<string, unknown> = {};
+  if (filter.employeeId) query.assignedEmployeeId = filter.employeeId;
+  if (filter.from || filter.to) {
+    query.createdAt = {
+      ...(filter.from ? { $gte: filter.from } : {}),
+      ...(filter.to ? { $lte: filter.to } : {}),
+    };
+  }
+  if (filter.status) query.status = filter.status;
+  if (filter.scope === "active") query.status = { $in: [...ACTIVE_STATUSES] };
+  if (filter.scope === "expired") query.status = PaymentStatus.EXPIRED;
+  if (filter.scope === "finished") {
+    query.status = { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED] };
+  }
+  if (filter.q) query.code = new RegExp(escapeRegex(filter.q), "i");
+  return query;
 }

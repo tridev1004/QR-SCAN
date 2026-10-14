@@ -3,19 +3,18 @@ import { toPaymentDto } from "../../application/dto/payment.dto";
 import { createPaymentSession, PaymentUseCaseDeps } from "../../application/use-cases/CreatePaymentSession";
 import { requireActiveEmployee } from "../../application/use-cases/ManageUsers";
 import {
-  getEmployeePayments,
+  getEmployeeDashboard,
   getPaymentQr,
   getPaymentSession,
   recordHeartbeat,
   reservePaymentSession,
-  summarizeEmployeeEarnings,
 } from "../../application/use-cases/PaymentQueries";
 import { updatePaymentStatus } from "../../application/use-cases/UpdatePaymentStatus";
 import { rewardInr } from "../../domain/entities/User";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { PaymentSseService } from "../../infrastructure/realtime/PaymentSseService";
 import { logger } from "../../shared/logger/logger";
-import { createPaymentSchema, heartbeatSchema, statusSchema } from "../validation";
+import { createPaymentSchema, heartbeatSchema, paymentListSchema, statusSchema } from "../validation";
 
 export function createPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }, sse: PaymentSseService) {
   return {
@@ -78,13 +77,15 @@ export function createPaymentController(deps: PaymentUseCaseDeps & { users: User
 
     async listMine(req: Request, res: Response, next: NextFunction) {
       try {
+        const query = paymentListSchema.parse(req.query);
         const employee = await deps.users.findById(req.user!.id);
-        const payments = await getEmployeePayments(deps, req.user!.id);
-        const owned = payments.filter((payment) => payment.assignedEmployeeId === req.user!.id);
-        res.json({
-          payments,
-          earnings: summarizeEmployeeEarnings(owned, rewardInr(employee?.successRewardInr)),
-        });
+        const dashboard = await getEmployeeDashboard(
+          deps,
+          req.user!.id,
+          { offset: query.offset ?? 0, limit: query.limit ?? 8, q: query.q },
+          rewardInr(employee?.successRewardInr),
+        );
+        res.json(dashboard);
       } catch (error) {
         next(error);
       }

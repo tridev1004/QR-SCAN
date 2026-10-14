@@ -24,14 +24,17 @@ export function AdminUsersPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkPrice, setBulkPrice] = useState("40");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  const qRef = useRef("");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const nextOffset = useRef(0);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   hasMoreRef.current = hasMore;
 
-  async function loadFirst() {
-    const page = await paymentApi.listEmployees({ limit: PAGE_SIZE, offset: 0 });
+  async function loadFirst(query = qRef.current) {
+    const page = await paymentApi.listEmployees({ limit: PAGE_SIZE, offset: 0, q: query || undefined });
     setEmployees(page.employees);
     setTotal(page.total ?? page.employees.length);
     setActiveCount(page.activeCount ?? page.employees.filter((employee) => employee.active).length);
@@ -46,7 +49,11 @@ export function AdminUsersPage() {
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const page = await paymentApi.listEmployees({ limit: PAGE_SIZE, offset: nextOffset.current });
+      const page = await paymentApi.listEmployees({
+        limit: PAGE_SIZE,
+        offset: nextOffset.current,
+        q: qRef.current || undefined,
+      });
       setEmployees((current) => {
         const seen = new Set(current.map((employee) => employee.id));
         return [...current, ...page.employees.filter((employee) => !seen.has(employee.id))];
@@ -67,8 +74,14 @@ export function AdminUsersPage() {
   loadMoreRef.current = loadMore;
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setQ(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    qRef.current = q;
     let cancelled = false;
-    loadFirst()
+    loadFirst(q)
       .then(() => {
         if (!cancelled) setError(null);
       })
@@ -81,7 +94,7 @@ export function AdminUsersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [q]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -276,6 +289,15 @@ export function AdminUsersPage() {
         <p className="eyebrow">Employees</p>
         <h1>Accounts</h1>
         <p className="muted">New accounts start at ₹40 per passed QR. You can change that for one person or for many.</p>
+        <label className="mt-3 grid max-w-xs gap-1 text-sm text-muted-foreground">
+          Search employees
+          <input
+            className="h-8 rounded-lg border border-input bg-background px-2 text-foreground"
+            value={search}
+            placeholder="Name or email"
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
       </div>
       <div className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-end gap-2">

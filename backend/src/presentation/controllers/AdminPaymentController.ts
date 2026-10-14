@@ -36,14 +36,18 @@ export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users:
     async list(req: Request, res: Response, next: NextFunction) {
       try {
         const query = adminQuerySchema.parse(req.query);
-        const payments = await getAdminPayments(deps, {
+        const filter = {
           status: query.status,
           employeeId: query.employeeId,
           from: query.from ? new Date(query.from) : undefined,
           to: query.to ? new Date(query.to) : undefined,
           scope: query.scope,
-        });
-        res.json({ payments });
+          q: query.q,
+        };
+        const page =
+          query.limit === undefined ? undefined : { offset: query.offset ?? 0, limit: query.limit };
+        const result = await getAdminPayments(deps, filter, page);
+        res.json(result);
       } catch (error) {
         next(error);
       }
@@ -143,7 +147,7 @@ export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users:
           return;
         }
         const offset = query.offset ?? 0;
-        const page = await deps.users.listByRolePage(UserRole.EMPLOYEE, offset, query.limit);
+        const page = await deps.users.listByRolePage(UserRole.EMPLOYEE, offset, query.limit, query.q);
         res.json({
           employees: page.users.map(toPublicUser),
           total: page.total,

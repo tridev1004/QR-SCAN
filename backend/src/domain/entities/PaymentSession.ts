@@ -31,5 +31,6 @@ export interface PaymentListFilter {
   employeeId?: string;
   from?: Date;
   to?: Date;
-  scope?: "active" | "expired" | "all";
+  scope?: "active" | "expired" | "finished" | "all";
+  q?: string;
 }

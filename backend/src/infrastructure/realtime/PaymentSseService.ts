@@ -40,24 +40,37 @@ export class PaymentSseService {
     res.flushHeaders?.();
     res.write(": connected\n\n");
 
-    const unsubscribe = this.bus.subscribe((event) => {
-      if (!canReceivePaymentEvent(user, event)) {
-        return;
+    let unsubscribe = () => undefined;
+    let ping: ReturnType<typeof setInterval> | undefined;
+    const stop = () => {
+      if (ping) clearInterval(ping);
+      unsubscribe();
+    };
+    unsubscribe = this.bus.subscribe((event) => {
+      try {
+        if (!canReceivePaymentEvent(user, event)) {
+          return;
+        }
+        if (paymentSessionId && eventSessionId(event) !== paymentSessionId) {
+          return;
+        }
+        res.write(`event: ${event.type}\n`);
+        res.write(`data: ${JSON.stringify(event.data)}\n\n`);
+      } catch {
+        stop();
       }
-      if (paymentSessionId && eventSessionId(event) !== paymentSessionId) {
-        return;
-      }
-      res.write(`event: ${event.type}\n`);
-      res.write(`data: ${JSON.stringify(event.data)}\n\n`);
     });
 
-    const ping = setInterval(() => {
-      res.write(": ping\n\n");
+    ping = setInterval(() => {
+      try {
+        res.write(": ping\n\n");
+      } catch {
+        stop();
+      }
     }, 20000);
 
     res.on("close", () => {
-      clearInterval(ping);
-      unsubscribe();
+      stop();
     });
   }
 }

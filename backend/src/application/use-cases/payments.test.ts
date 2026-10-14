@@ -8,7 +8,7 @@ import { PaymentEventBus } from "../../infrastructure/realtime/PaymentEventBus";
 import { InMemoryPaymentSessionRepository } from "../../test/InMemoryPaymentSessionRepository";
 import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
-import { getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
+import { getEmployeeDashboard, getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
 import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
 
@@ -201,6 +201,31 @@ describe("payment use cases", () => {
     expect(loser).toBeNull();
     const visibleToRahul = (await getEmployeePayments(deps, rahul.id)).map((item) => item.id);
     const visibleToAman = (await getEmployeePayments(deps, aman.id)).map((item) => item.id);
+    const parallel = await Promise.all([
+      createPaymentSession(deps, {
+        localSessionId: randomUUID(),
+        assignedEmployeeId: rahul.id,
+        qrFingerprint: "d".repeat(64),
+        qrImage: `data:image/png;base64,${"d".repeat(64)}`,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        createdByUserId: admin.id,
+      }),
+      createPaymentSession(deps, {
+        localSessionId: randomUUID(),
+        assignedEmployeeId: aman.id,
+        qrFingerprint: "e".repeat(64),
+        qrImage: `data:image/png;base64,${"e".repeat(64)}`,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        createdByUserId: admin.id,
+      }),
+    ]);
+    const rahulLive = await getEmployeeDashboard(deps, rahul.id, { offset: 0, limit: 8 }, 40);
+    const amanLive = await getEmployeeDashboard(deps, aman.id, { offset: 0, limit: 8 }, 40);
+    expect(rahulLive.live.map((item) => item.id)).toContain(parallel[0].session.id);
+    expect(rahulLive.live.map((item) => item.id)).not.toContain(parallel[1].session.id);
+    expect(amanLive.live.map((item) => item.id)).toContain(parallel[1].session.id);
+    expect(amanLive.live.map((item) => item.id)).not.toContain(parallel[0].session.id);
+
     if (winner?.assignedEmployeeId === rahul.id) {
       expect(visibleToRahul).toContain(session.id);
       expect(visibleToAman).not.toContain(session.id);

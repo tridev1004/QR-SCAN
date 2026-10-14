@@ -63,6 +63,7 @@ export async function readSseStream(
 export async function runPaymentEventLoop(options: {
   open: () => Promise<Response>;
   onEvent: (event: PaymentStreamEvent) => void;
+  onConnected?: (attempt: number) => void;
   signal: AbortSignal;
   sleep: (ms: number) => Promise<void>;
 }): Promise<void> {
@@ -73,6 +74,7 @@ export async function runPaymentEventLoop(options: {
       if (!response.ok || !response.body) {
         throw new Error("Unable to subscribe to payment events");
       }
+      options.onConnected?.(attempt);
       attempt = 0;
       await readSseStream(response.body, options.onEvent);
     } catch {

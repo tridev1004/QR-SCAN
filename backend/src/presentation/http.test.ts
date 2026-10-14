@@ -121,7 +121,7 @@ describe("payment http api", () => {
       .send({ status: "WAITING_FOR_PAYMENT" });
     expect(waiting.body.status).toBe("WAITING_FOR_PAYMENT");
     const live = await request(app).get("/api/payments").set("Authorization", `Bearer ${rahulToken}`);
-    expect(live.body.payments).toHaveLength(1);
+    expect(live.body.live).toHaveLength(1);
 
     const success = await request(app)
       .patch(`/api/internal/payment-sessions/${id}/status`)

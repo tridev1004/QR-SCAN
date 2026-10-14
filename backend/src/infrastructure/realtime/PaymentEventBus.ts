@@ -35,7 +35,11 @@ export class PaymentEventBus {
 
   publish(event: PaymentStreamEvent): void {
     for (const listener of this.listeners) {
-      listener(event);
+      try {
+        listener(event);
+      } catch {
+        this.listeners.delete(listener);
+      }
     }
   }
 }

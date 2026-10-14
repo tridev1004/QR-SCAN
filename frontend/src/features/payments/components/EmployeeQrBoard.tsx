@@ -1,52 +1,57 @@
+import { ReactNode } from "react";
 import { PaymentCardGrid } from "./PaymentCardGrid";
 import { formatInr } from "../state/money";
-import { isTerminal, PaymentSession } from "../types/payment.types";
+import { EmployeeEarnings, isTerminal, PaymentSession } from "../types/payment.types";
 
 export function EmployeeQrBoard({
-  payments,
-  successRewardInr,
+  live,
+  history,
+  earnings,
   onReserve,
+  historyControls,
 }: {
-  payments: PaymentSession[];
-  successRewardInr: number;
+  live: PaymentSession[];
+  history: PaymentSession[];
+  earnings: EmployeeEarnings;
   onReserve?: (id: string) => Promise<unknown>;
+  historyControls?: ReactNode;
 }) {
-  const passed = payments.filter((payment) => payment.status === "SUCCESS");
-  const failed = payments.filter((payment) => payment.status === "FAILED");
-  const expired = payments.filter((payment) => payment.status === "EXPIRED");
-  const open = payments.filter((payment) => payment.broadcast && !payment.assignedEmployeeId && !isTerminal(payment.status));
-  const live = payments.filter((payment) => !payment.broadcast && !isTerminal(payment.status));
-  const earnedInr = passed.length * successRewardInr;
+  const passed = history.filter((payment) => payment.status === "SUCCESS");
+  const failed = history.filter((payment) => payment.status === "FAILED");
+  const expired = history.filter((payment) => payment.status === "EXPIRED");
+  const open = live.filter((payment) => payment.broadcast && !payment.assignedEmployeeId && !isTerminal(payment.status));
+  const ready = live.filter((payment) => !payment.broadcast && !isTerminal(payment.status));
 
   return (
     <>
       <div className="stat-row">
         <article className="stat-card">
           <p className="eyebrow">Per passed QR</p>
-          <strong>{formatInr(successRewardInr)}</strong>
+          <strong>{formatInr(earnings.successRewardInr)}</strong>
         </article>
         <article className="stat-card">
           <p className="eyebrow">Passed</p>
-          <strong>{passed.length}</strong>
+          <strong>{earnings.passedCount}</strong>
         </article>
         <article className="stat-card">
           <p className="eyebrow">Failed</p>
-          <strong>{failed.length}</strong>
+          <strong>{earnings.failedCount}</strong>
         </article>
         <article className="stat-card">
           <p className="eyebrow">Earned</p>
-          <strong>{formatInr(earnedInr)}</strong>
+          <strong>{formatInr(earnings.earnedInr)}</strong>
         </article>
       </div>
       <QrGroup title="Reserve a QR" payments={open} empty="No QR is waiting to be reserved." onReserve={onReserve} />
-      <QrGroup title="Ready to scan" payments={live} empty="No QR is waiting to be scanned." />
+      <QrGroup title="Ready to scan" payments={ready} empty="No QR is waiting to be scanned." />
+      {historyControls}
       <QrGroup
         title="Passed"
         payments={passed}
-        successRewardInr={successRewardInr}
-        empty="No passed QR yet."
+        successRewardInr={earnings.successRewardInr}
+        empty="No passed QR on this page."
       />
-      <QrGroup title="Failed" payments={failed} empty="No failed QR yet." />
+      <QrGroup title="Failed" payments={failed} empty="No failed QR on this page." />
       {expired.length > 0 ? <QrGroup title="Expired" payments={expired} empty="" /> : null}
     </>
   );

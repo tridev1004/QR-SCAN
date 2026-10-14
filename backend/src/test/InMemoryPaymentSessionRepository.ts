@@ -82,6 +82,27 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
   }
 
   async listAll(filter: PaymentListFilter): Promise<PaymentSession[]> {
+    return this.matching(filter);
+  }
+
+  async listPage(
+    filter: PaymentListFilter,
+    offset: number,
+    limit: number,
+  ): Promise<{ sessions: PaymentSession[]; total: number }> {
+    const sessions = this.matching(filter);
+    return { sessions: sessions.slice(offset, offset + limit), total: sessions.length };
+  }
+
+  async countOutcomes(employeeId: string): Promise<{ passed: number; failed: number }> {
+    const mine = [...this.sessions.values()].filter((item) => item.assignedEmployeeId === employeeId);
+    return {
+      passed: mine.filter((item) => item.status === PaymentStatus.SUCCESS).length,
+      failed: mine.filter((item) => item.status === PaymentStatus.FAILED).length,
+    };
+  }
+
+  private matching(filter: PaymentListFilter): PaymentSession[] {
     return [...this.sessions.values()]
       .filter((item) => {
         if (filter.status && item.status !== filter.status) return false;
@@ -90,6 +111,15 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
         if (filter.to && item.createdAt > filter.to) return false;
         if (filter.scope === "active" && !ACTIVE_STATUSES.includes(item.status)) return false;
         if (filter.scope === "expired" && item.status !== PaymentStatus.EXPIRED) return false;
+        if (
+          filter.scope === "finished" &&
+          item.status !== PaymentStatus.SUCCESS &&
+          item.status !== PaymentStatus.FAILED &&
+          item.status !== PaymentStatus.EXPIRED
+        ) {
+          return false;
+        }
+        if (filter.q && !item.code.toLowerCase().includes(filter.q.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
