@@ -8,8 +8,10 @@ import {
   changeEmployeePassword,
   createEmployeeAccount,
   deleteEmployeeAccount,
+  deleteEmployeeAccounts,
   setEmployeeActive,
   setEmployeeReward,
+  setEmployeeRewards,
 } from "../../application/use-cases/ManageUsers";
 import {
   assignPaymentSession,
@@ -23,6 +25,8 @@ import {
   createEmployeeSchema,
   employeeActiveSchema,
   employeeListSchema,
+  bulkDeleteSchema,
+  bulkRewardSchema,
   employeePasswordSchema,
   employeeRewardSchema,
 } from "../validation";
@@ -76,6 +80,34 @@ export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users:
           successRewardInr: saved.successRewardInr ?? 0,
         });
         res.json({ employee: toPublicUser(saved) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async setRewards(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = bulkRewardSchema.parse(req.body);
+        const updated = await setEmployeeRewards(deps.users, body.successRewardInr, {
+          all: body.all === true,
+          employeeIds: body.employeeIds ?? [],
+        });
+        logger.info("employee rewards updated", { updated, successRewardInr: body.successRewardInr, all: body.all === true });
+        res.json({ updated, successRewardInr: body.successRewardInr });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async removeEmployees(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = bulkDeleteSchema.parse(req.body);
+        const deleted = await deleteEmployeeAccounts(deps.users, {
+          inactive: body.inactive === true,
+          employeeIds: body.employeeIds ?? [],
+        });
+        logger.info("employees deleted", { deleted, inactive: body.inactive === true });
+        res.json({ deleted });
       } catch (error) {
         next(error);
       }

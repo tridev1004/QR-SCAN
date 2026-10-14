@@ -1,5 +1,5 @@
 import { describeScan } from "./scanReport";
-import { startGoogleCloudObserver } from "./googleCloudObserver";
+import { captureVisibleQr, startGoogleCloudObserver } from "./googleCloudObserver";
 import { WorkerResponse } from "../shared/messages";
 
 const runtime = globalThis as typeof globalThis & { __upiMonitorStarted?: boolean };
@@ -8,10 +8,14 @@ if (!runtime.__upiMonitorStarted) {
   console.info("[upi-monitor] watching", location.host);
 
   chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
-    if (message?.type !== "REPORT_SCAN") {
+    if (message?.type === "REPORT_SCAN") {
+      sendResponse(describeScan(document, location.href));
       return;
     }
-    sendResponse(describeScan(document, location.href));
+    if (message?.type === "CAPTURE_QR") {
+      void captureVisibleQr(document).then(sendResponse);
+      return true;
+    }
   });
 
   startGoogleCloudObserver({

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { paymentApi } from "../payments/api/paymentApi";
 import { formatInr } from "../payments/state/money";
 import { Employee } from "../payments/types/payment.types";
@@ -20,6 +21,9 @@ export function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkPrice, setBulkPrice] = useState("40");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const nextOffset = useRef(0);
   const loadingMoreRef = useRef(false);
@@ -174,6 +178,86 @@ export function AdminUsersPage() {
     }
   }
 
+  function toggleSelected(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function parseBulkPrice(): number | null {
+    const raw = bulkPrice.trim();
+    if (!/^\d+$/.test(raw)) {
+      setNotice(null);
+      setError("Enter a whole rupee amount");
+      return null;
+    }
+    return Number(raw);
+  }
+
+  async function applyPrice(all: boolean) {
+    const successRewardInr = parseBulkPrice();
+    if (successRewardInr === null) return;
+    const employeeIds = [...selected];
+    if (!all && employeeIds.length === 0) {
+      setError("Select at least one employee");
+      return;
+    }
+    const label = all ? "every employee" : `${employeeIds.length} selected`;
+    if (!window.confirm(`Set ${formatInr(successRewardInr)} per passed QR for ${label}?`)) return;
+    setBulkBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await paymentApi.setEmployeeRewards({ successRewardInr, all, employeeIds });
+      setRewardDrafts({});
+      setNotice(`Passed QR pay is ${formatInr(successRewardInr)} for ${result.updated} employees`);
+      await loadFirst();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update the payout");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function deleteSelected() {
+    const employeeIds = [...selected];
+    if (employeeIds.length === 0) return;
+    if (!window.confirm(`Delete ${employeeIds.length} selected employees? They will no longer be able to sign in.`)) return;
+    setBulkBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await paymentApi.deleteEmployees({ employeeIds });
+      setSelected(new Set());
+      setNotice(`${result.deleted} employees deleted`);
+      await loadFirst();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete the accounts");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function deleteInactive() {
+    if (!window.confirm("Delete every inactive employee? Active accounts stay.")) return;
+    setBulkBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await paymentApi.deleteEmployees({ inactive: true });
+      setSelected(new Set());
+      setNotice(result.deleted === 0 ? "No inactive employees to delete" : `${result.deleted} inactive employees deleted`);
+      await loadFirst();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete inactive accounts");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   async function toggle(employee: Employee) {
     setError(null);
     try {
@@ -191,6 +275,34 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <p className="eyebrow">Employees</p>
         <h1>Accounts</h1>
+        <p className="muted">New accounts start at ₹40 per passed QR. You can change that for one person or for many.</p>
+      </div>
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-sm text-muted-foreground">
+            ₹ per passed QR
+            <input
+              className="h-8 w-28 rounded-lg border border-input bg-background px-2 text-foreground"
+              inputMode="numeric"
+              value={bulkPrice}
+              onChange={(event) => setBulkPrice(event.target.value)}
+            />
+          </label>
+          <Button type="button" disabled={bulkBusy || selected.size === 0} onClick={() => void applyPrice(false)}>
+            Apply to selected ({selected.size})
+          </Button>
+          <Button type="button" variant="secondary" disabled={bulkBusy} onClick={() => void applyPrice(true)}>
+            Apply to all
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="destructive" disabled={bulkBusy || selected.size === 0} onClick={() => void deleteSelected()}>
+            Delete selected
+          </Button>
+          <Button type="button" variant="outline" disabled={bulkBusy} onClick={() => void deleteInactive()}>
+            Delete all inactive
+          </Button>
+        </div>
       </div>
       <form className="panel create-grid" onSubmit={onCreate}>
         <label>
@@ -220,9 +332,18 @@ export function AdminUsersPage() {
         {employees.map((employee) => (
           <article className="panel employee-card" key={employee.id}>
             <header>
-              <div>
-                <h2>{employee.name}</h2>
-                <p className="muted">{employee.email}</p>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={selected.has(employee.id)}
+                  aria-label={`Select ${employee.name}`}
+                  onChange={() => toggleSelected(employee.id)}
+                />
+                <div>
+                  <h2>{employee.name}</h2>
+                  <p className="muted">{employee.email}</p>
+                </div>
               </div>
               <span className={employee.active ? "pill pill-on" : "pill"}>{employee.active ? "Active" : "Inactive"}</span>
             </header>

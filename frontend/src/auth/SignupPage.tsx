@@ -3,6 +3,9 @@ import { Link, Navigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "./AuthContext";
 
+const EMAIL_PATTERN =
+  /^(?!.*\.\.)[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+
 export function SignupPage() {
   const { user } = useAuth();
   const [name, setName] = useState("");
@@ -19,6 +22,11 @@ export function SignupPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setError("Enter a valid email address");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -28,11 +36,11 @@ export function SignupPage() {
     try {
       await api("/api/auth/signup/check", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
       const result = await api<{ email: string }>("/api/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email: normalizedEmail, password }),
       });
       setSentTo(result.email);
     } catch (caught) {
@@ -66,7 +74,17 @@ export function SignupPage() {
             </label>
             <label>
               Email
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required />
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                maxLength={254}
+                pattern="^(?!.*\.\.)[A-Za-z0-9](?:[A-Za-z0-9._%+-]*[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$"
+                title="Enter a valid email address, such as name@company.com"
+                required
+              />
             </label>
             <label>
               Password

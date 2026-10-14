@@ -1,7 +1,7 @@
 import { labelForScan } from "../content/scanReport";
 import { API_BASE_URL } from "../shared/apiBase";
 import { injectWatcher, isWatchedUrl } from "../shared/injectWatcher";
-import { ScanReport } from "../shared/messages";
+import { HeldQr, ScanReport, WorkerResponse } from "../shared/messages";
 
 const statusNode = document.querySelector<HTMLElement>("#status");
 const signInForm = document.querySelector<HTMLFormElement>("#signInForm");
@@ -183,17 +183,64 @@ employeeSearch?.addEventListener("input", () => {
   renderEmployees();
 });
 
+async function captureOpenQr(): Promise<HeldQr | null> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return null;
+  }
+  const frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+  const read = async () => {
+    for (const frame of frames ?? []) {
+      if (!isWatchedUrl(frame.url)) {
+        continue;
+      }
+      try {
+        const qr = (await chrome.tabs.sendMessage(tab.id!, { type: "CAPTURE_QR" }, { frameId: frame.frameId })) as HeldQr | null;
+        if (qr?.qrFingerprint && qr.qrImage && qr.expiresAt) {
+          return qr;
+        }
+      } catch {
+        // This frame has no watcher yet.
+      }
+    }
+    return null;
+  };
+  const current = await read();
+  if (current) {
+    return current;
+  }
+  for (const frame of frames ?? []) {
+    if (!isWatchedUrl(frame.url)) {
+      continue;
+    }
+    await injectWatcher(tab.id, frame.frameId).catch(() => undefined);
+  }
+  return read();
+}
+
 sendQr?.addEventListener("click", () => {
   if (!sendQr) {
     return;
   }
   sendQr.disabled = true;
   sendQr.textContent = "Sending…";
-  chrome.runtime.sendMessage({ type: "SEND_QR" }, () => {
-    sendQr.disabled = false;
-    sendQr.textContent = "Send";
-    void refresh();
-  });
+  void (async () => {
+    try {
+      const live = await captureOpenQr();
+      const result = (await chrome.runtime.sendMessage({ type: "SEND_QR", payload: live ?? undefined })) as WorkerResponse | undefined;
+      if (!result?.ok && captureNode) {
+        captureNode.textContent = result?.error ?? "Could not send the QR";
+      }
+    } catch (error) {
+      if (captureNode) {
+        captureNode.textContent = error instanceof Error ? error.message : "Could not send the QR";
+      }
+    } finally {
+      sendQr.disabled = false;
+      sendQr.textContent = "Send";
+      void refresh();
+    }
+  })();
 });
 
 async function loadEmployees() {

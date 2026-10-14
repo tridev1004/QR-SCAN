@@ -50,13 +50,25 @@ const captureReady = chrome.storage.session.get(["lastCaptureLevel"]).then((stor
   captureLevel = typeof stored.lastCaptureLevel === "number" ? stored.lastCaptureLevel : 0;
 });
 
-async function rememberCapture(level: number, text: string) {
-  await captureReady;
-  if (level < captureLevel) {
-    return;
-  }
-  captureLevel = level;
-  await chrome.storage.session.set({ lastCapture: text, lastCaptureLevel: level });
+let captureChain: Promise<void> = Promise.resolve();
+
+function rememberCapture(level: number, text: string, replace = false): Promise<void> {
+  const run = captureChain.then(async () => {
+    await captureReady;
+    if (replace) {
+      captureLevel = 0;
+    }
+    if (level < captureLevel) {
+      return;
+    }
+    captureLevel = level;
+    await chrome.storage.session.set({ lastCapture: text, lastCaptureLevel: level });
+  });
+  captureChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 const frameQr = new Map<number, { visible: boolean; at: number }>();
@@ -93,22 +105,28 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     .then(() => handle(message))
     .then(async (result) => {
       if (message.type === "QR_OBSERVED") {
-        captureLevel = 0;
-        const text = result.ok && result.held ? "QR ready. Press Send." : result.ok ? "" : result.error ?? "Could not keep the QR";
+        const text = !result.ok
+          ? result.error ?? "Could not keep the QR"
+          : result.held && !result.alreadySent
+            ? "QR ready. Press Send."
+            : "";
         if (text) {
-          await rememberCapture(3, text);
+          await rememberCapture(3, text, true);
         }
       }
       if (message.type === "SEND_QR") {
-        captureLevel = 0;
         const stored = await chrome.storage.session.get(["selectedEmployeeName"]);
         const who = typeof stored.selectedEmployeeName === "string" ? stored.selectedEmployeeName : "";
         const text = !result.ok
           ? result.error ?? "Could not send the QR"
-          : result.broadcast
-            ? "QR sent to all active employees"
-            : `QR sent to ${who || "the selected employee"}`;
-        await rememberCapture(3, text);
+          : result.pending
+            ? "Sending…"
+            : result.alreadySent
+              ? "This QR was already sent. Generate the next one, then press Send."
+              : result.broadcast
+                ? "QR sent to all active employees"
+                : `QR sent to ${who || "the selected employee"}`;
+        await rememberCapture(3, text, true);
       }
       if (message.type === "SCAN_STATUS") {
         const next = labelForScan(message.payload);

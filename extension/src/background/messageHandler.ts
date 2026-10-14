@@ -66,17 +66,6 @@ export function createMessageHandler(deps: WorkerDeps) {
 
     const fingerprint = message.payload.qrFingerprint;
     const existing = deps.registry.getByFingerprint(fingerprint);
-    if (existing) {
-      if (existing.status === "QR_READY") {
-        const config = await deps.loadConfig();
-        if (config) {
-          await deps.api.updatePaymentStatus(config, existing.backendPaymentSessionId, "WAITING_FOR_PAYMENT");
-          deps.registry.updateStatus(existing.backendPaymentSessionId, "WAITING_FOR_PAYMENT");
-          await deps.save();
-        }
-      }
-      return { ok: true, backendPaymentSessionId: existing.backendPaymentSessionId };
-    }
     if (inFlight.has(fingerprint)) {
       return { ok: true, pending: true };
     }
@@ -90,16 +79,31 @@ export function createMessageHandler(deps: WorkerDeps) {
       qrImage: message.payload.qrImage,
       expiresAt: message.payload.expiresAt,
     });
+    if (existing) {
+      if (existing.status === "QR_READY") {
+        await deps.api.updatePaymentStatus(config, existing.backendPaymentSessionId, "WAITING_FOR_PAYMENT");
+        deps.registry.updateStatus(existing.backendPaymentSessionId, "WAITING_FOR_PAYMENT");
+        await deps.save();
+      }
+      return { ok: true, held: true, alreadySent: true, backendPaymentSessionId: existing.backendPaymentSessionId };
+    }
     return { ok: true, held: true };
 
     async function sendHeldQr(): Promise<WorkerResponse> {
+      if (message.type === "SEND_QR" && message.payload?.qrFingerprint && message.payload.qrImage && message.payload.expiresAt) {
+        await deps.saveHeld({
+          qrFingerprint: message.payload.qrFingerprint,
+          qrImage: message.payload.qrImage,
+          expiresAt: message.payload.expiresAt,
+        });
+      }
       const held = await deps.loadHeld();
       if (!held) {
         return { ok: false, error: "No QR is ready to send" };
       }
       const already = deps.registry.getByFingerprint(held.qrFingerprint);
       if (already) {
-        return { ok: true, backendPaymentSessionId: already.backendPaymentSessionId };
+        return { ok: true, alreadySent: true, backendPaymentSessionId: already.backendPaymentSessionId };
       }
       if (inFlight.has(held.qrFingerprint)) {
         return { ok: true, pending: true };

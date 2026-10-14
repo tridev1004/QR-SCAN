@@ -37,6 +37,16 @@ export const paymentApi = {
   setEmployeeActive(id: string, active: boolean): Promise<{ employee: Employee }> {
     return api(`/api/admin/employees/${id}`, { method: "PATCH", body: JSON.stringify({ active }) });
   },
+  setEmployeeRewards(input: {
+    successRewardInr: number;
+    all?: boolean;
+    employeeIds?: string[];
+  }): Promise<{ updated: number; successRewardInr: number }> {
+    return api("/api/admin/employees/rewards", { method: "POST", body: JSON.stringify(input) });
+  },
+  deleteEmployees(input: { inactive?: boolean; employeeIds?: string[] }): Promise<{ deleted: number }> {
+    return api("/api/admin/employees/delete", { method: "POST", body: JSON.stringify(input) });
+  },
   setEmployeeReward(id: string, successRewardInr: number): Promise<{ employee: Employee }> {
     return api(`/api/admin/employees/${id}/reward`, {
       method: "PATCH",

@@ -22,6 +22,7 @@ export type ExtensionMessage =
     }
   | {
       type: "SEND_QR";
+      payload?: HeldQr;
     }
   | {
       type: "PAGE_STATUS";
@@ -34,5 +35,12 @@ export type ExtensionMessage =
     };
 
 export type WorkerResponse =
-  | { ok: true; backendPaymentSessionId?: string; pending?: boolean; held?: boolean; broadcast?: boolean }
+  | {
+      ok: true;
+      backendPaymentSessionId?: string;
+      pending?: boolean;
+      held?: boolean;
+      broadcast?: boolean;
+      alreadySent?: boolean;
+    }
   | { ok: false; error: string };

@@ -131,6 +131,33 @@ describe("extension session mapping", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it("sends the QR captured from the page even after an earlier one was sent", async () => {
+    const { handle, creates } = setup();
+    await handle(observed("one"));
+    await handle({ type: "SEND_QR" });
+    const second = await handle({
+      type: "SEND_QR",
+      payload: {
+        qrFingerprint: "two",
+        qrImage: "data:image/png;base64,two",
+        expiresAt: "2026-10-01T12:04:40.000Z",
+      },
+    });
+    expect(second).toMatchObject({ ok: true, backendPaymentSessionId: "backend-2" });
+    expect(creates.map((item) => item.qrFingerprint)).toEqual(["one", "two"]);
+
+    const repeat = await handle({
+      type: "SEND_QR",
+      payload: {
+        qrFingerprint: "two",
+        qrImage: "data:image/png;base64,two",
+        expiresAt: "2026-10-01T12:04:40.000Z",
+      },
+    });
+    expect(repeat).toMatchObject({ ok: true, alreadySent: true, backendPaymentSessionId: "backend-2" });
+    expect(creates).toHaveLength(2);
+  });
+
   it("sends a held QR to every active employee when nobody is selected", async () => {
     const { handle, creates } = setup(async () => null);
     const held = await handle(observed("abc"));

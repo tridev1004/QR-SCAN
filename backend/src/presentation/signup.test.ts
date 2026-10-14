@@ -64,4 +64,18 @@ describe("employee signup verification", () => {
     expect(duplicate.status).toBe(409);
     expect(sent).toHaveLength(1);
   });
+
+  it("rejects an email that is not a full address", async () => {
+    const before = sent.length;
+    const signup = await request(app).post("/api/auth/signup").send({
+      name: "Neha",
+      email: "not-an-email",
+      password: "neha123",
+    });
+    expect(signup.status).toBe(400);
+
+    const missingDomain = await request(app).post("/api/auth/signup/check").send({ email: "user@gmail" });
+    expect(missingDomain.status).toBe(400);
+    expect(sent).toHaveLength(before);
+  });
 });

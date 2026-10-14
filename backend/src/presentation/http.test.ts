@@ -153,7 +153,13 @@ describe("payment http api", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ name: "Neha", email: "neha@company.local", password: "neha123" });
     expect(created.status).toBe(201);
-    expect(created.body.employee).toMatchObject({ name: "Neha", email: "neha@company.local", role: "EMPLOYEE", active: true });
+    expect(created.body.employee).toMatchObject({
+      name: "Neha",
+      email: "neha@company.local",
+      role: "EMPLOYEE",
+      active: true,
+      successRewardInr: 40,
+    });
 
     const employeeLogin = await request(app)
       .post("/api/auth/login")

@@ -4,6 +4,7 @@ import { ConflictError, DomainError } from "../../domain/errors/DomainError";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { Mailer } from "../../infrastructure/email/Mailer";
 import { hashPassword } from "../../infrastructure/auth/password";
+import { DEFAULT_SUCCESS_REWARD_INR } from "./ManageUsers";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -43,6 +44,7 @@ export async function signupEmployee(
       role: UserRole.EMPLOYEE,
       active: false,
       emailVerified: false,
+      successRewardInr: DEFAULT_SUCCESS_REWARD_INR,
       verificationTokenHash,
       verificationExpiresAt,
     });

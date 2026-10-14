@@ -1,14 +1,24 @@
 import { z } from "zod";
 import { PaymentStatus } from "../domain/enums/PaymentStatus";
 
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .regex(
+    /^(?!.*\.\.)[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/,
+    "Enter a valid email address",
+  );
+
 export const signupSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  email: z.string().email(),
+  email: emailSchema,
   password: z.string().min(6).max(200),
 });
 
 export const signupEmailSchema = z.object({
-  email: z.string().email(),
+  email: emailSchema,
 });
 
 export const verifyEmailSchema = z.object({
@@ -38,6 +48,43 @@ export const employeePasswordSchema = z.object({
 export const employeeRewardSchema = z.object({
   successRewardInr: z.number().int().min(0).max(100_000),
 });
+
+export const bulkRewardSchema = z
+  .object({
+    successRewardInr: z.number().int().min(0).max(100_000),
+    all: z.boolean().optional(),
+    employeeIds: z.array(z.string().min(1).max(80)).max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.all) {
+      return;
+    }
+    if (!value.employeeIds?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["employeeIds"],
+        message: "Select employees or apply the price to everyone",
+      });
+    }
+  });
+
+export const bulkDeleteSchema = z
+  .object({
+    inactive: z.boolean().optional(),
+    employeeIds: z.array(z.string().min(1).max(80)).max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.inactive) {
+      return;
+    }
+    if (!value.employeeIds?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["employeeIds"],
+        message: "Select employees or delete inactive accounts",
+      });
+    }
+  });
 
 export const employeeListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),

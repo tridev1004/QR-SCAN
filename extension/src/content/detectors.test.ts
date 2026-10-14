@@ -230,6 +230,28 @@ describe("observer", () => {
     stop();
   });
 
+  it("reports failure when the QR modal is closed", async () => {
+    const document = page(qrScreen);
+    const sent: boolean[] = [];
+    const stop = startGoogleCloudObserver({
+      document,
+      debounceMs: 20,
+      closeDelayMs: 40,
+      now: () => Date.parse("2026-10-01T12:00:00.000Z"),
+      send: (message) => {
+        if (message.type === "PAGE_STATUS") sent.push(message.payload.failure);
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    document.body.innerHTML = "<h1>Google Cloud</h1>";
+    document.body.setAttribute("data-step", "closed");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(sent).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(sent).toEqual([true]);
+    stop();
+  });
+
   it("keeps offering the same QR until an employee is chosen", async () => {
     const document = page(qrScreen);
     let accepted = false;
@@ -260,6 +282,32 @@ describe("observer", () => {
     document.body.setAttribute("data-step", "done");
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(sent).toHaveLength(3);
+    stop();
+  });
+
+  it("offers the same QR again when the modal closes and opens", async () => {
+    const document = page(qrScreen);
+    const sent: string[] = [];
+    const stop = startGoogleCloudObserver({
+      document,
+      debounceMs: 20,
+      closeDelayMs: 500,
+      now: () => Date.parse("2026-10-01T12:00:00.000Z"),
+      send: (message) => {
+        if (message.type === "QR_OBSERVED") sent.push(message.payload.qrFingerprint);
+        return { ok: true as const };
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(sent).toHaveLength(1);
+    document.body.innerHTML = "<h1>Google Cloud</h1>";
+    document.body.setAttribute("data-step", "closed");
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    document.body.innerHTML = qrScreen;
+    document.body.setAttribute("data-step", "opened-again");
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toBe(sent[0]);
     stop();
   });
 

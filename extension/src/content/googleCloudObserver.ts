@@ -1,4 +1,4 @@
-import { ExtensionMessage, WorkerResponse } from "../shared/messages";
+import { ExtensionMessage, HeldQr, WorkerResponse } from "../shared/messages";
 import { debounce } from "./debounce";
 import { detectExpired, detectFailure, detectSuccess } from "./statusDetector";
 import { describeScan } from "./scanReport";
@@ -8,15 +8,18 @@ import { forEachShadowRoot } from "./domQuery";
 
 const FALLBACK_EXPIRY_MS = 5 * 60 * 1000;
 
+const CLOSE_DELAY_MS = 5_200;
+
 export function startGoogleCloudObserver(options: {
   document: Document;
   send: (message: ExtensionMessage) => void | Promise<WorkerResponse | void>;
   now?: () => number;
   debounceMs?: number;
+  closeDelayMs?: number;
 }): () => void {
   const now = options.now ?? (() => Date.now());
   const seenExpiry = new Map<string, string>();
-  const accepted = new Set<string>();
+  let armedFingerprint: string | null = null;
   let lastFingerprint: string | null = null;
   let lastStatusKey = "";
   let lastSummary = "";
@@ -24,6 +27,33 @@ export function startGoogleCloudObserver(options: {
   let queued = false;
   let stopped = false;
   let disconnect = () => undefined;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearClose = () => {
+    if (closeTimer !== undefined) {
+      clearTimeout(closeTimer);
+      closeTimer = undefined;
+    }
+  };
+
+  const scheduleClose = (fingerprint: string) => {
+    if (closeTimer !== undefined || !fingerprint) {
+      return;
+    }
+    closeTimer = setTimeout(() => {
+      closeTimer = undefined;
+      if (stopped || isQrScreen(options.document) || detectSuccess(options.document) || detectFailure(options.document)) {
+        return;
+      }
+      armedFingerprint = null;
+      seenExpiry.delete(fingerprint);
+      lastStatusKey = `${fingerprint}:closed`;
+      options.send({
+        type: "PAGE_STATUS",
+        payload: { qrFingerprint: fingerprint, success: false, failure: true, expired: false },
+      });
+    }, options.closeDelayMs ?? CLOSE_DELAY_MS);
+  };
 
   const scan = async (forceStatus = false) => {
     if (scanning) {
@@ -42,6 +72,7 @@ export function startGoogleCloudObserver(options: {
       }
       const qr = isQrScreen(options.document) ? findQrImage(options.document) : null;
       if (qr) {
+        clearClose();
         const src = qr.getAttribute("src") ?? "";
         const fingerprint = await fingerprintQrImage(src);
         lastFingerprint = fingerprint;
@@ -51,7 +82,7 @@ export function startGoogleCloudObserver(options: {
             (timerText && expiresAtFromTimer(timerText, now())) || new Date(now() + FALLBACK_EXPIRY_MS).toISOString();
           seenExpiry.set(fingerprint, expiresAt);
         }
-        if (!accepted.has(fingerprint)) {
+        if (armedFingerprint !== fingerprint) {
           const response = await options.send({
             type: "QR_OBSERVED",
             payload: {
@@ -62,9 +93,11 @@ export function startGoogleCloudObserver(options: {
             },
           });
           if (!response || (response.ok && !response.pending)) {
-            accepted.add(fingerprint);
+            armedFingerprint = fingerprint;
           }
         }
+      } else {
+        armedFingerprint = null;
       }
 
       const fingerprint = lastFingerprint ?? "";
@@ -80,14 +113,18 @@ export function startGoogleCloudObserver(options: {
         return;
       }
       if (!success && !failure && !expired) {
+        if (qrGone) {
+          scheduleClose(fingerprint);
+        }
         return;
       }
+      clearClose();
       const statusKey = `${fingerprint}:${success}:${failure}:${expired}`;
       if (statusKey === lastStatusKey) {
         return;
       }
       lastStatusKey = statusKey;
-      accepted.delete(fingerprint);
+      armedFingerprint = null;
       seenExpiry.delete(fingerprint);
       options.send({
         type: "PAGE_STATUS",
@@ -143,6 +180,7 @@ export function startGoogleCloudObserver(options: {
 
   disconnect = () => {
     stopped = true;
+    clearClose();
     debounced.cancel();
     observer.disconnect();
     if (pulse !== undefined) {
@@ -151,4 +189,22 @@ export function startGoogleCloudObserver(options: {
   };
 
   return disconnect;
+}
+
+export async function captureVisibleQr(document: Document, now = Date.now()): Promise<HeldQr | null> {
+  if (!isQrScreen(document)) {
+    return null;
+  }
+  const qr = findQrImage(document);
+  const src = qr?.getAttribute("src") ?? "";
+  if (!qr || !src) {
+    return null;
+  }
+  const timerText = readCountdown(document);
+  const expiresAt = (timerText && expiresAtFromTimer(timerText, now)) || new Date(now + FALLBACK_EXPIRY_MS).toISOString();
+  return {
+    qrFingerprint: await fingerprintQrImage(src),
+    qrImage: src,
+    expiresAt,
+  };
 }
