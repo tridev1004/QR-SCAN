@@ -7,11 +7,15 @@ export interface PaymentSessionRepository {
   findByExternalSessionId(externalSessionId: string): Promise<PaymentSession | null>;
   update(session: PaymentSession): Promise<PaymentSession>;
   claimIfOpen(id: string, employeeId: string, now: Date): Promise<PaymentSession | null>;
+  countActiveAssigned(employeeId: string): Promise<number>;
+  releaseClaim(id: string, employeeId: string, now: Date): Promise<PaymentSession | null>;
   listOpenBroadcasts(): Promise<PaymentSession[]>;
   listForEmployee(employeeId: string): Promise<PaymentSession[]>;
   listAll(filter: PaymentListFilter): Promise<PaymentSession[]>;
   listPage(filter: PaymentListFilter, offset: number, limit: number): Promise<{ sessions: PaymentSession[]; total: number }>;
   countOutcomes(employeeId: string): Promise<{ passed: number; failed: number }>;
+  countStrikes(employeeId: string, since: Date): Promise<number>;
+  countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>>;
   findDueForExpiry(now: Date): Promise<PaymentSession[]>;
   nextCode(): Promise<string>;
 }

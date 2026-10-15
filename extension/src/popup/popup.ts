@@ -272,8 +272,13 @@ async function loadEmployees() {
     employeeList.append(empty);
     return;
   }
-  const body = (await response.json()) as { employees?: Array<{ id: string; name: string; active: boolean }> };
-  const active = (body.employees ?? []).filter((employee) => employee.active);
+  const body = (await response.json()) as {
+    employees?: Array<{ id: string; name: string; active: boolean; cooldownUntil?: string }>;
+  };
+  const now = Date.now();
+  const active = (body.employees ?? []).filter(
+    (employee) => employee.active && (!employee.cooldownUntil || Date.parse(employee.cooldownUntil) <= now),
+  );
   const selected = typeof stored.selectedEmployeeId === "string" ? stored.selectedEmployeeId : "";
   const stillThere = active.some((employee) => employee.id === selected);
   if (selected && !stillThere) {

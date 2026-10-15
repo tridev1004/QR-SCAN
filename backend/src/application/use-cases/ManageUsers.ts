@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
-import { User } from "../../domain/entities/User";
+import { isCoolingDown, User } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
-import { ConflictError, NotFoundError } from "../../domain/errors/DomainError";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../domain/errors/DomainError";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { hashPassword } from "../../infrastructure/auth/password";
 
@@ -31,6 +31,9 @@ export async function requireActiveEmployee(users: UserRepository, employeeId: s
   const employee = await users.findById(employeeId);
   if (!employee || employee.role !== UserRole.EMPLOYEE || !employee.active) {
     throw new NotFoundError("Choose an active employee");
+  }
+  if (isCoolingDown(employee, new Date())) {
+    throw new ForbiddenError("This account is paused for 3 hours after failed QRs");
   }
   return employee;
 }

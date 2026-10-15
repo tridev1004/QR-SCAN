@@ -9,11 +9,13 @@ export function PaymentCardGrid({
   payments,
   successRewardInr,
   onReserve,
+  reserveLocked = false,
   holderNames,
 }: {
   payments: PaymentSession[];
   successRewardInr?: number;
   onReserve?: (id: string) => Promise<unknown>;
+  reserveLocked?: boolean;
   holderNames?: Map<string, string>;
 }) {
   return (
@@ -24,6 +26,7 @@ export function PaymentCardGrid({
           payment={payment}
           successRewardInr={successRewardInr}
           onReserve={onReserve}
+          reserveLocked={reserveLocked}
           holderNames={holderNames}
         />
       ))}
@@ -35,11 +38,13 @@ function LivePaymentCard({
   payment,
   successRewardInr,
   onReserve,
+  reserveLocked = false,
   holderNames,
 }: {
   payment: PaymentSession;
   successRewardInr?: number;
   onReserve?: (id: string) => Promise<unknown>;
+  reserveLocked?: boolean;
   holderNames?: Map<string, string>;
 }) {
   const claimable = payment.broadcast === true && !payment.assignedEmployeeId;
@@ -55,6 +60,7 @@ function LivePaymentCard({
       qrImage={qrImage}
       resultLabel={resultLabel}
       reserving={reserving}
+      reserveLocked={reserveLocked}
       reserveError={reserveError}
       holderLabel={
         holderNames

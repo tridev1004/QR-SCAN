@@ -281,7 +281,7 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <p className="eyebrow">Employees</p>
         <h1>Accounts</h1>
-        <p className="muted">Names stay in alphabetical order. Add an account from the sidebar.</p>
+        <p className="muted">Names stay in alphabetical order. Add an account from New employee.</p>
       </div>
       <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
       <div>
@@ -318,7 +318,7 @@ export function AdminUsersPage() {
                   <p className="muted">{employee.email}</p>
                 </div>
               </div>
-              <span className={employee.active ? "pill pill-on" : "pill"}>{employee.active ? "Active" : "Inactive"}</span>
+              <span className={employee.active && !isPaused(employee) ? "pill pill-on" : "pill"}>{accountStatus(employee)}</span>
             </header>
             <div className="employee-actions">
               <form
@@ -421,4 +421,14 @@ export function AdminUsersPage() {
 
 function sortEmployees(employees: Employee[]): Employee[] {
   return [...employees].sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+}
+
+function isPaused(employee: Employee): boolean {
+  return Boolean(employee.cooldownUntil && Date.parse(employee.cooldownUntil) > Date.now());
+}
+
+function accountStatus(employee: Employee): string {
+  if (!employee.active) return "Inactive";
+  if (isPaused(employee)) return "Paused";
+  return "Active";
 }

@@ -1,8 +1,10 @@
 import { PaymentStatus } from "../../domain/enums/PaymentStatus";
 import { NotFoundError } from "../../domain/errors/DomainError";
+import { UserRepository } from "../../domain/repositories/UserRepository";
 import { isTerminal, transitionSession } from "../../domain/services/PaymentStateMachine";
 import { toPaymentDto } from "../dto/payment.dto";
 import { PaymentUseCaseDeps } from "./CreatePaymentSession";
+import { noteEmployeeStrike } from "./EmployeeAccounts";
 
 const STATUS_MESSAGE: Partial<Record<PaymentStatus, string>> = {
   [PaymentStatus.QR_READY]: "QR ready",
@@ -13,7 +15,7 @@ const STATUS_MESSAGE: Partial<Record<PaymentStatus, string>> = {
 };
 
 export async function updatePaymentStatus(
-  deps: PaymentUseCaseDeps,
+  deps: PaymentUseCaseDeps & { users?: UserRepository },
   paymentSessionId: string,
   status: PaymentStatus,
   errorMessage?: string,
@@ -46,6 +48,10 @@ export async function updatePaymentStatus(
       assignedEmployeeId: saved.assignedEmployeeId,
     },
   });
+
+  if (deps.users) {
+    await noteEmployeeStrike(deps.users, deps.payments, saved.assignedEmployeeId, saved.status, now);
+  }
 
   return saved;
 }

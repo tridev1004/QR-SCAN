@@ -38,6 +38,9 @@ export function usePaymentSession(paymentSessionId: string) {
   }, [reload]);
 
   usePaymentEvents((event) => {
+    if (event.type === "payout-updated") {
+      return;
+    }
     const eventId = event.type === "payment-status" ? event.data.paymentSessionId : event.data.id;
     if (eventId !== paymentSessionId) {
       return;

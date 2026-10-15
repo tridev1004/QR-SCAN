@@ -11,6 +11,7 @@ export function PaymentCard({
   qrImage,
   resultLabel,
   reserving = false,
+  reserveLocked = false,
   reserveError,
   onReserve,
   holderLabel,
@@ -19,6 +20,7 @@ export function PaymentCard({
   qrImage?: string | null;
   resultLabel?: string;
   reserving?: boolean;
+  reserveLocked?: boolean;
   reserveError?: string | null;
   onReserve?: () => void;
   holderLabel?: string;
@@ -41,8 +43,8 @@ export function PaymentCard({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/50 px-4 text-center backdrop-blur-md">
             <p className="text-sm font-medium text-foreground">Someone needs to reserve this QR</p>
             {onReserve ? (
-              <Button type="button" size="lg" disabled={reserving} onClick={onReserve}>
-                {reserving ? "Reserving…" : "Reserve"}
+              <Button type="button" size="lg" disabled={reserving || reserveLocked} onClick={onReserve}>
+                {reserving ? "Reserving…" : reserveLocked ? "Two QRs in progress" : "Reserve"}
               </Button>
             ) : (
               <p className="text-xs text-muted-foreground">Waiting for an employee to reserve it</p>

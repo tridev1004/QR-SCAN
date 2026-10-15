@@ -1,5 +1,5 @@
 import { api } from "../../../api/client";
-import { Employee, EmployeeEarnings, PaymentSession, PaymentStatus } from "../types/payment.types";
+import { Employee, EmployeeEarnings, PaymentSession, PaymentStatus, PayoutReport } from "../types/payment.types";
 
 export interface AdminPaymentQuery {
   status?: PaymentStatus;
@@ -19,6 +19,7 @@ export interface PaymentPage {
 export interface EmployeePaymentPage extends PaymentPage {
   live: PaymentSession[];
   earnings: EmployeeEarnings;
+  cooldownUntil?: string;
 }
 
 function paymentQuery(query: AdminPaymentQuery): string {
@@ -52,6 +53,33 @@ export const paymentApi = {
     const params = new URLSearchParams({ limit: String(page.limit), offset: String(page.offset) });
     if (page.q) params.set("q", page.q);
     return api(`/api/admin/employees?${params.toString()}`);
+  },
+  payoutReport(page: { limit: number; offset: number; q?: string; unpaid?: boolean }): Promise<PayoutReport> {
+    const params = new URLSearchParams({ limit: String(page.limit), offset: String(page.offset) });
+    if (page.q) params.set("q", page.q);
+    if (page.unpaid) params.set("unpaid", "1");
+    return api(`/api/admin/payouts?${params.toString()}`);
+  },
+  employeePayoutQr(id: string): Promise<{ qrImage: string }> {
+    return api(`/api/admin/employees/${id}/payout-qr`);
+  },
+  markEmployeePaid(id: string): Promise<{ employee: Employee }> {
+    return api(`/api/admin/employees/${id}/paid`, { method: "POST" });
+  },
+  markEmployeeUnpaid(id: string): Promise<{ employee: Employee }> {
+    return api(`/api/admin/employees/${id}/unpaid`, { method: "POST" });
+  },
+  uploadPayoutQr(qrImage: string): Promise<void> {
+    return api("/api/payments/payout-qr", { method: "POST", body: JSON.stringify({ qrImage }) });
+  },
+  ownPayout(): Promise<{ qrImage: string | null; upiId: string }> {
+    return api("/api/payments/payout");
+  },
+  saveUpiId(upiId: string): Promise<void> {
+    return api("/api/payments/payout-upi", { method: "POST", body: JSON.stringify({ upiId }) });
+  },
+  ownPayoutQr(): Promise<{ qrImage: string }> {
+    return api("/api/payments/payout-qr");
   },
   createEmployee(input: { name: string; email: string; password: string }): Promise<{ employee: Employee }> {
     return api("/api/admin/employees", { method: "POST", body: JSON.stringify(input) });

@@ -15,7 +15,11 @@ export function createAdminRoutes(
   const controller = createAdminPaymentController(deps);
   router.use(createAuthentication(deps.users, deps.tokens), authorize(UserRole.ADMIN), privateNoStore);
   router.get("/payments", (req, res, next) => void controller.list(req, res, next));
+  router.get("/payouts", (req, res, next) => void controller.payouts(req, res, next));
   router.get("/employees", (req, res, next) => void controller.employees(req, res, next));
+  router.get("/employees/:id/payout-qr", (req, res, next) => void controller.payoutQr(req, res, next));
+  router.post("/employees/:id/paid", (req, res, next) => void controller.markPaid(req, res, next));
+  router.post("/employees/:id/unpaid", (req, res, next) => void controller.markUnpaid(req, res, next));
   router.post("/employees", (req, res, next) => void controller.createEmployee(req, res, next));
   router.post("/employees/rewards", (req, res, next) => void controller.setRewards(req, res, next));
   router.post("/employees/delete", (req, res, next) => void controller.removeEmployees(req, res, next));

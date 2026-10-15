@@ -319,7 +319,7 @@ describe("payment http api", () => {
     expect(statuses).toContain("SUCCESS");
     expect(statuses).toContain("FAILED");
     const passedCount = statuses.filter((status) => status === "SUCCESS").length;
-    expect(mine.body.earnings).toEqual({
+    expect(mine.body.earnings).toMatchObject({
       successRewardInr: 50,
       passedCount,
       failedCount: statuses.filter((status) => status === "FAILED").length,

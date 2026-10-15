@@ -35,6 +35,8 @@ export interface Employee {
   email: string;
   active: boolean;
   successRewardInr: number;
+  cooldownUntil?: string;
+  hasPayoutQr?: boolean;
 }
 
 export interface EmployeeEarnings {
@@ -42,6 +44,37 @@ export interface EmployeeEarnings {
   passedCount: number;
   failedCount: number;
   earnedInr: number;
+  todayPassedCount?: number;
+  todayEarnedInr?: number;
+  paidInr?: number;
+  unpaidInr?: number;
+  hasPayoutQr?: boolean;
+}
+
+export interface EmployeePayoutRow {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  cooldownUntil?: string;
+  successRewardInr: number;
+  todayPassed: number;
+  overallPassed: number;
+  earnedInr: number;
+  paidInr: number;
+  unpaidInr: number;
+  hasPayoutQr: boolean;
+  upiId?: string;
+  lastPaidAt?: string;
+}
+
+export interface PayoutReport {
+  todayPassed: number;
+  overallPassed: number;
+  totalPayableInr: number;
+  employees: EmployeePayoutRow[];
+  total: number;
+  hasMore: boolean;
 }
 
 export type PaymentStreamEvent =
@@ -56,7 +89,8 @@ export type PaymentStreamEvent =
         assignedEmployeeId?: string;
       };
     }
-  | { type: "payment-assigned"; data: PaymentSession };
+  | { type: "payment-assigned"; data: PaymentSession }
+  | { type: "payout-updated"; data: { employeeId: string; paidInr: number; unpaidInr: number; earnedInr: number } };
 
 export function isTerminal(status: PaymentStatus): boolean {
   return status === "SUCCESS" || status === "FAILED" || status === "EXPIRED";

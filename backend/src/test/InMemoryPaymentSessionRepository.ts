@@ -69,6 +69,22 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
     return claimed;
   }
 
+  async countActiveAssigned(employeeId: string): Promise<number> {
+    return [...this.sessions.values()].filter(
+      (item) => item.assignedEmployeeId === employeeId && isActive(item.status),
+    ).length;
+  }
+
+  async releaseClaim(id: string, employeeId: string, now: Date): Promise<PaymentSession | null> {
+    const current = this.sessions.get(id);
+    if (!current || current.assignedEmployeeId !== employeeId || !isActive(current.status)) {
+      return null;
+    }
+    const released: PaymentSession = { ...current, assignedEmployeeId: undefined, broadcast: true, updatedAt: now };
+    this.sessions.set(id, released);
+    return released;
+  }
+
   async listOpenBroadcasts(): Promise<PaymentSession[]> {
     return [...this.sessions.values()]
       .filter((item) => isOpenBroadcast(item))
@@ -100,6 +116,26 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
       passed: mine.filter((item) => item.status === PaymentStatus.SUCCESS).length,
       failed: mine.filter((item) => item.status === PaymentStatus.FAILED).length,
     };
+  }
+
+  async countStrikes(employeeId: string, since: Date): Promise<number> {
+    return [...this.sessions.values()].filter(
+      (item) =>
+        item.assignedEmployeeId === employeeId &&
+        (item.status === PaymentStatus.FAILED || item.status === PaymentStatus.EXPIRED) &&
+        item.completedAt !== undefined &&
+        item.completedAt.getTime() > since.getTime(),
+    ).length;
+  }
+
+  async countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>> {
+    const counts = new Map<string, number>();
+    for (const item of this.sessions.values()) {
+      if (item.status !== PaymentStatus.SUCCESS || !item.assignedEmployeeId) continue;
+      if (from && (!item.completedAt || item.completedAt.getTime() < from.getTime())) continue;
+      counts.set(item.assignedEmployeeId, (counts.get(item.assignedEmployeeId) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([employeeId, count]) => ({ employeeId, count }));
   }
 
   private matching(filter: PaymentListFilter): PaymentSession[] {

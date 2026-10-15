@@ -10,11 +10,11 @@ import {
   reservePaymentSession,
 } from "../../application/use-cases/PaymentQueries";
 import { updatePaymentStatus } from "../../application/use-cases/UpdatePaymentStatus";
-import { rewardInr } from "../../domain/entities/User";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { PaymentSseService } from "../../infrastructure/realtime/PaymentSseService";
 import { logger } from "../../shared/logger/logger";
-import { createPaymentSchema, heartbeatSchema, paymentListSchema, statusSchema } from "../validation";
+import { saveEmployeePayoutQr, saveEmployeeUpiId } from "../../application/use-cases/EmployeeAccounts";
+import { createPaymentSchema, heartbeatSchema, paymentListSchema, payoutQrSchema, payoutUpiSchema, statusSchema } from "../validation";
 
 export function createPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }, sse: PaymentSseService) {
   return {
@@ -79,13 +79,59 @@ export function createPaymentController(deps: PaymentUseCaseDeps & { users: User
       try {
         const query = paymentListSchema.parse(req.query);
         const employee = await deps.users.findById(req.user!.id);
-        const dashboard = await getEmployeeDashboard(
-          deps,
-          req.user!.id,
-          { offset: query.offset ?? 0, limit: query.limit ?? 8, q: query.q },
-          rewardInr(employee?.successRewardInr),
-        );
+        const dashboard = await getEmployeeDashboard(deps, employee, {
+          offset: query.offset ?? 0,
+          limit: query.limit ?? 8,
+          q: query.q,
+        });
         res.json(dashboard);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async ownPayout(req: Request, res: Response, next: NextFunction) {
+      try {
+        const [employee, qrImage] = await Promise.all([
+          deps.users.findById(req.user!.id),
+          deps.users.getPayoutQr(req.user!.id),
+        ]);
+        res.setHeader("Cache-Control", "no-store");
+        res.json({ qrImage, upiId: employee?.upiId ?? "" });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async saveUpiId(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = payoutUpiSchema.parse(req.body);
+        await saveEmployeeUpiId(deps.users, req.user!.id, body.upiId);
+        res.status(204).send();
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async uploadPayoutQr(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = payoutQrSchema.parse(req.body);
+        await saveEmployeePayoutQr(deps.users, req.user!.id, body.qrImage);
+        res.status(204).send();
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async ownPayoutQr(req: Request, res: Response, next: NextFunction) {
+      try {
+        const qrImage = await deps.users.getPayoutQr(req.user!.id);
+        if (!qrImage) {
+          res.status(404).json({ error: "No payment QR uploaded" });
+          return;
+        }
+        res.setHeader("Cache-Control", "no-store");
+        res.json({ qrImage });
       } catch (error) {
         next(error);
       }

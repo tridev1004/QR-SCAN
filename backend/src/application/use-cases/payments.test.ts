@@ -10,6 +10,8 @@ import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
 import { getEmployeeDashboard, getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
 import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
+import { getAdminPayoutReport, markEmployeePaid, markEmployeeUnpaid, saveEmployeeUpiId } from "./EmployeeAccounts";
+import { requireActiveEmployee } from "./ManageUsers";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
 
 const admin = { id: "admin", name: "Admin", email: "admin@company.local", role: UserRole.ADMIN, active: true };
@@ -219,8 +221,8 @@ describe("payment use cases", () => {
         createdByUserId: admin.id,
       }),
     ]);
-    const rahulLive = await getEmployeeDashboard(deps, rahul.id, { offset: 0, limit: 8 }, 40);
-    const amanLive = await getEmployeeDashboard(deps, aman.id, { offset: 0, limit: 8 }, 40);
+    const rahulLive = await getEmployeeDashboard(deps, rahul, { offset: 0, limit: 8 });
+    const amanLive = await getEmployeeDashboard(deps, aman, { offset: 0, limit: 8 });
     expect(rahulLive.live.map((item) => item.id)).toContain(parallel[0].session.id);
     expect(rahulLive.live.map((item) => item.id)).not.toContain(parallel[1].session.id);
     expect(amanLive.live.map((item) => item.id)).toContain(parallel[1].session.id);
@@ -234,5 +236,85 @@ describe("payment use cases", () => {
       expect(visibleToAman).toContain(session.id);
       expect(visibleToRahul).not.toContain(session.id);
     }
+  });
+
+  it("pauses an employee for 3 hours after three failed QRs and records a payout", async () => {
+    const { deps, setNow } = setup();
+    setNow(new Date());
+    for (const digit of ["1", "2", "3"]) {
+      const { session } = await createQr(deps, digit.repeat(64));
+      await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+      await updatePaymentStatus(deps, session.id, PaymentStatus.FAILED, "failed");
+    }
+    const paused = await deps.users.findById(rahul.id);
+    expect(paused?.cooldownUntil && paused.cooldownUntil.getTime()).toBeGreaterThan(Date.now());
+    await expect(requireActiveEmployee(deps.users, rahul.id)).rejects.toBeInstanceOf(ForbiddenError);
+
+    await deps.users.update({ ...rahul, successRewardInr: 40, cooldownUntil: new Date(0), strikeResetAt: new Date() });
+    const { session } = await createQr(deps, "4".repeat(64));
+    await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, session.id, PaymentStatus.SUCCESS);
+    const paid = await markEmployeePaid(deps.users, deps.payments, rahul.id, new Date("2026-10-01T18:00:00.000Z"));
+    expect(paid.paidInr).toBe(40);
+    expect(paid.payouts?.[0]?.amountInr).toBe(40);
+    const unpaid = await markEmployeeUnpaid(deps.users, rahul.id);
+    expect(unpaid.paidInr).toBe(0);
+    expect(unpaid.payouts).toEqual([]);
+  });
+
+  it("lists unpaid employees first and pages the payout search", async () => {
+    const { deps } = setup();
+    await deps.users.update({ ...rahul, successRewardInr: 40 });
+    await deps.users.update({ ...aman, successRewardInr: 40, paidInr: 40 });
+    const { session } = await createQr(deps, "5".repeat(64));
+    await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, session.id, PaymentStatus.SUCCESS);
+
+    const first = await getAdminPayoutReport(deps.users, deps.payments, deps.now(), { offset: 0, limit: 1 });
+    expect(first.employees.map((row) => row.id)).toEqual([rahul.id]);
+    expect(first.total).toBe(2);
+    expect(first.hasMore).toBe(true);
+    expect(first.totalPayableInr).toBe(40);
+
+    const unpaid = await getAdminPayoutReport(deps.users, deps.payments, deps.now(), {
+      offset: 0,
+      limit: 8,
+      unpaidOnly: true,
+    });
+    expect(unpaid.employees.map((row) => row.id)).toEqual([rahul.id]);
+    expect(unpaid.total).toBe(1);
+
+    const search = await getAdminPayoutReport(deps.users, deps.payments, deps.now(), { offset: 0, limit: 8, q: "ama" });
+    expect(search.employees.map((row) => row.id)).toEqual([aman.id]);
+    expect(search.totalPayableInr).toBe(40);
+
+    await saveEmployeeUpiId(deps.users, rahul.id, "rahul@okbank");
+    const withUpi = await getAdminPayoutReport(deps.users, deps.payments, deps.now(), { offset: 0, limit: 8, q: "rahul" });
+    expect(withUpi.employees[0]?.upiId).toBe("rahul@okbank");
+  });
+
+  it("lets an employee reserve only two QRs until one is finished", async () => {
+    const { deps } = setup();
+    const ids: string[] = [];
+    for (const digit of ["6", "7", "8"]) {
+      const { session } = await createPaymentSession(deps, {
+        localSessionId: randomUUID(),
+        broadcast: true,
+        qrFingerprint: digit.repeat(64),
+        qrImage: `data:image/png;base64,${digit.repeat(64)}`,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        createdByUserId: admin.id,
+      });
+      ids.push(session.id);
+    }
+    await reservePaymentSession(deps, ids[0], rahul.id);
+    await reservePaymentSession(deps, ids[1], rahul.id);
+    await expect(reservePaymentSession(deps, ids[2], rahul.id)).rejects.toBeInstanceOf(ConflictError);
+    expect((await deps.payments.findById(ids[2]))?.assignedEmployeeId).toBeUndefined();
+
+    await updatePaymentStatus(deps, ids[0], PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, ids[0], PaymentStatus.SUCCESS);
+    const third = await reservePaymentSession(deps, ids[2], rahul.id);
+    expect(third.assignedEmployeeId).toBe(rahul.id);
   });
 });

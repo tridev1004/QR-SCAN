@@ -19,6 +19,15 @@ export type PaymentStreamEvent =
   | {
       type: "payment-assigned";
       data: PaymentSessionDto;
+    }
+  | {
+      type: "payout-updated";
+      data: {
+        employeeId: string;
+        paidInr: number;
+        unpaidInr: number;
+        earnedInr: number;
+      };
     };
 
 type Listener = (event: PaymentStreamEvent) => void;

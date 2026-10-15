@@ -8,12 +8,14 @@ export function EmployeeQrBoard({
   history,
   earnings,
   onReserve,
+  reserveLocked = false,
   historyControls,
 }: {
   live: PaymentSession[];
   history: PaymentSession[];
   earnings: EmployeeEarnings;
   onReserve?: (id: string) => Promise<unknown>;
+  reserveLocked?: boolean;
   historyControls?: ReactNode;
 }) {
   const passed = history.filter((payment) => payment.status === "SUCCESS");
@@ -38,11 +40,35 @@ export function EmployeeQrBoard({
           <strong>{earnings.failedCount}</strong>
         </article>
         <article className="stat-card">
-          <p className="eyebrow">Earned</p>
+          <p className="eyebrow">Today</p>
+          <strong>{formatInr(earnings.todayEarnedInr ?? 0)}</strong>
+        </article>
+        <article className="stat-card">
+          <p className="eyebrow">Overall</p>
           <strong>{formatInr(earnings.earnedInr)}</strong>
         </article>
+        <article className="stat-card">
+          <p className="eyebrow">Paid</p>
+          <strong>{formatInr(earnings.paidInr ?? 0)}</strong>
+        </article>
+        <article className="stat-card">
+          <p className="eyebrow">Unpaid</p>
+          <strong>{formatInr(earnings.unpaidInr ?? 0)}</strong>
+        </article>
       </div>
-      <QrGroup title="Reserve a QR" payments={open} empty="No QR is waiting to be reserved." onReserve={onReserve} />
+   
+      {reserveLocked ? (
+        <p className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          You already have two QRs reserved. Finish them as passed, failed, or expired to reserve more.
+        </p>
+      ) : null}
+      <QrGroup
+        title="Reserve a QR"
+        payments={open}
+        empty="No QR is waiting to be reserved."
+        onReserve={onReserve}
+        reserveLocked={reserveLocked}
+      />
       <QrGroup title="Ready to scan" payments={ready} empty="No QR is waiting to be scanned." />
       {historyControls}
       <QrGroup
@@ -63,18 +89,20 @@ function QrGroup({
   empty,
   successRewardInr,
   onReserve,
+  reserveLocked,
 }: {
   title: string;
   payments: PaymentSession[];
   empty: string;
   successRewardInr?: number;
   onReserve?: (id: string) => Promise<unknown>;
+  reserveLocked?: boolean;
 }) {
   return (
     <section className="qr-group">
       <h2 className="section-title">{title}</h2>
       {payments.length === 0 ? <p className="muted">{empty}</p> : null}
-      <PaymentCardGrid payments={payments} successRewardInr={successRewardInr} onReserve={onReserve} />
+      <PaymentCardGrid payments={payments} successRewardInr={successRewardInr} onReserve={onReserve} reserveLocked={reserveLocked} />
     </section>
   );
 }

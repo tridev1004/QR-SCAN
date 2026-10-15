@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { EmployeeQrBoard } from "../components/EmployeeQrBoard";
+import { isTerminal } from "../types/payment.types";
 import { ListPager } from "../components/ListPager";
 import { usePayments } from "../hooks/usePayments";
 
@@ -9,7 +10,7 @@ export function EmployeePaymentsPage() {
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
-  const { live, payments, earnings, total, hasMore, loading, error, reserve } = usePayments("employee", {
+  const { live, payments, earnings, cooldownUntil, total, hasMore, loading, error, reserve } = usePayments("employee", {
     limit: PAGE_SIZE,
     offset,
     q: q || undefined,
@@ -32,15 +33,21 @@ export function EmployeePaymentsPage() {
           <p className="muted">New QRs show up here as soon as they are sent. Earnings count every passed QR.</p>
         </div>
       </div>
+      {cooldownUntil ? (
+        <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Your account is paused until {new Date(cooldownUntil).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} after three failed or expired QRs. You will not receive new QRs until then.
+        </p>
+      ) : null}
       {error ? <p className="form-error">{error}</p> : null}
       {earnings || live.length > 0 ? (
         <EmployeeQrBoard
-          live={live}
+          live={cooldownUntil ? live.filter((payment) => Boolean(payment.assignedEmployeeId)) : live}
           history={payments}
           earnings={
             earnings ?? { successRewardInr: 0, passedCount: 0, failedCount: 0, earnedInr: 0 }
           }
           onReserve={reserve}
+          reserveLocked={live.filter((payment) => payment.assignedEmployeeId && !isTerminal(payment.status)).length >= 2}
           historyControls={
             <label className="mt-4 grid max-w-xs gap-1 text-sm text-muted-foreground">
               Search past QRs

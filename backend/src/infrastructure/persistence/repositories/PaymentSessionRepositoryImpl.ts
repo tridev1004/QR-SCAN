@@ -181,6 +181,22 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
     return null;
   }
 
+  async countActiveAssigned(employeeId: string): Promise<number> {
+    return PaymentModel.countDocuments({
+      assignedEmployeeId: employeeId,
+      status: { $in: [...ACTIVE_STATUSES] },
+    });
+  }
+
+  async releaseClaim(id: string, employeeId: string, now: Date): Promise<PaymentSession | null> {
+    const doc = await PaymentModel.findOneAndUpdate(
+      { _id: id, assignedEmployeeId: employeeId, status: { $in: [...ACTIVE_STATUSES] } },
+      { $set: { assignedEmployeeId: null, broadcast: true, updatedAt: now } },
+      { new: true },
+    ).lean();
+    return doc ? toEntity(doc) : null;
+  }
+
   async listOpenBroadcasts(): Promise<PaymentSession[]> {
     const docs = await PaymentModel.find({
       broadcast: true,
@@ -221,6 +237,27 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
       PaymentModel.countDocuments({ assignedEmployeeId: employeeId, status: PaymentStatus.FAILED }),
     ]);
     return { passed, failed };
+  }
+
+  async countStrikes(employeeId: string, since: Date): Promise<number> {
+    return PaymentModel.countDocuments({
+      assignedEmployeeId: employeeId,
+      status: { $in: [PaymentStatus.FAILED, PaymentStatus.EXPIRED] },
+      completedAt: { $gt: since },
+    });
+  }
+
+  async countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>> {
+    const match: Record<string, unknown> = {
+      status: PaymentStatus.SUCCESS,
+      assignedEmployeeId: { $type: "string" },
+    };
+    if (from) match.completedAt = { $gte: from };
+    const rows = await PaymentModel.aggregate<{ _id: string; count: number }>([
+      { $match: match },
+      { $group: { _id: "$assignedEmployeeId", count: { $sum: 1 } } },
+    ]);
+    return rows.map((row) => ({ employeeId: row._id, count: row.count }));
   }
 
   async findDueForExpiry(now: Date): Promise<PaymentSession[]> {

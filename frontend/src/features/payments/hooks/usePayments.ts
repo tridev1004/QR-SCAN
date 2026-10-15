@@ -17,11 +17,13 @@ function adjustEarnings(current: EmployeeEarnings | null, previous: PaymentSessi
   if (previous.status === "FAILED") failedCount -= 1;
   if (event.data.status === "SUCCESS") passedCount += 1;
   if (event.data.status === "FAILED") failedCount += 1;
+  const earnedInr = passedCount * current.successRewardInr;
   return {
     ...current,
     passedCount,
     failedCount,
-    earnedInr: passedCount * current.successRewardInr,
+    earnedInr,
+    unpaidInr: Math.max(0, earnedInr - (current.paidInr ?? 0)),
   };
 }
 
@@ -58,6 +60,7 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
   const [live, setLive] = useState<PaymentSession[]>([]);
   const [payments, setPayments] = useState<PaymentSession[]>([]);
   const [earnings, setEarnings] = useState<EmployeeEarnings | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<string | undefined>();
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,8 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
       const result = await paymentApi.listMine(query);
       setLive((current) => mergeLivePayments(result.live ?? [], current, missed.current));
       setPayments(result.payments);
-      setEarnings(result.earnings);
+        setEarnings(result.earnings);
+        setCooldownUntil(result.cooldownUntil);
       setTotal(result.total ?? result.payments.length);
       setHasMore(result.hasMore ?? false);
     } finally {
@@ -115,6 +119,16 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
   usePaymentEvents(
     (event) => {
       if (!user) return;
+      if (event.type === "payout-updated") {
+        if (user.role === "EMPLOYEE" && event.data.employeeId === user.id) {
+          setEarnings((current) =>
+            current
+              ? { ...current, paidInr: event.data.paidInr, unpaidInr: event.data.unpaidInr, earnedInr: event.data.earnedInr }
+              : current,
+          );
+        }
+        return;
+      }
       if (fetching.current) missed.current = true;
       if (mode === "admin") {
         setPayments((current) => applyPaymentEvent(current, event, user));
@@ -127,6 +141,7 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
       setLive((current) => applyPaymentEvent(current, event, user).filter((item) => !isTerminal(item.status)));
       setPayments((current) => applyHistory(current, event, user, liveRef.current, firstPage));
       setEarnings((current) => adjustEarnings(current, previous, event));
+      if (event.type === "payment-status" && isTerminal(event.data.status)) void reload();
     },
     () => {
       void reload();
@@ -154,5 +169,5 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
     return result.payment;
   }, []);
 
-  return { live, payments, earnings, total, hasMore, loading, error, reload, reserve, cancel };
+  return { live, payments, earnings, cooldownUntil, total, hasMore, loading, error, reload, reserve, cancel };
 }

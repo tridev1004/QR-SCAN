@@ -20,6 +20,10 @@ export function createPaymentRoutes(
   router.get("/", authorize(UserRole.EMPLOYEE, UserRole.ADMIN), (req, res, next) => {
     void controller.listMine(req, res, next);
   });
+  router.get("/payout", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.ownPayout(req, res, next));
+  router.post("/payout-upi", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.saveUpiId(req, res, next));
+  router.get("/payout-qr", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.ownPayoutQr(req, res, next));
+  router.post("/payout-qr", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.uploadPayoutQr(req, res, next));
   router.post("/:id/reserve", authorize(UserRole.EMPLOYEE), (req, res, next) => void controller.reserve(req, res, next));
   router.get("/:id/qr", (req, res, next) => void controller.getQr(req, res, next));
   router.get("/:id/events", (req, res) => controller.events(req, res, String(req.params.id)));

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { AdminSidebar } from "./AdminSidebar";
+import { EmployeeSidebar } from "./EmployeeSidebar";
 
 export function Layout() {
   const { user, clearSession } = useAuth();
@@ -17,29 +18,18 @@ export function Layout() {
   if (location.pathname.startsWith("/admin")) {
     return (
       <div className="flex min-h-screen bg-background text-foreground">
-        <AdminSidebar name={user.name} onSignOut={clearSession} onEmployeeCreated={() => setRosterVersion((current) => current + 1)} />
+        <AdminSidebar name={user.name} onSignOut={clearSession} />
         <main className="page min-w-0 flex-1">
-          <Outlet context={{ rosterVersion }} />
+          <Outlet context={{ rosterVersion, onEmployeeCreated: () => setRosterVersion((current) => current + 1) }} />
         </main>
       </div>
     );
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div>
-          <strong>UPI QR Monitor</strong>
-          <span>{user.name}</span>
-        </div>
-        <nav>
-          <NavLink to="/dashboard">My sessions</NavLink>
-          <button type="button" onClick={clearSession}>
-            Sign out
-          </button>
-        </nav>
-      </header>
-      <main className="page">
+    <div className="flex min-h-screen bg-background text-foreground">
+      <EmployeeSidebar name={user.name} onSignOut={clearSession} />
+      <main className="page min-w-0 flex-1">
         <Outlet />
       </main>
     </div>

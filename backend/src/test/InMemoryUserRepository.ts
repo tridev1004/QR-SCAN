@@ -1,9 +1,10 @@
 import { User } from "../domain/entities/User";
 import { UserRole } from "../domain/enums/UserRole";
-import { UserPage, UserRepository } from "../domain/repositories/UserRepository";
+import { EmployeePayoutSource, UserPage, UserRepository } from "../domain/repositories/UserRepository";
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
+  private readonly payoutQrs = new Map<string, string>();
 
   constructor(seed: User[] = []) {
     for (const user of seed) {
@@ -25,6 +26,21 @@ export class InMemoryUserRepository implements UserRepository {
 
   async listByRole(role: UserRole): Promise<User[]> {
     return this.sortedByRole(role);
+  }
+
+  async listEmployeePayoutSources(): Promise<EmployeePayoutSource[]> {
+    return this.sortedByRole(UserRole.EMPLOYEE).map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      active: user.active,
+      successRewardInr: user.successRewardInr ?? 0,
+      paidInr: user.paidInr ?? 0,
+      hasPayoutQr: user.hasPayoutQr === true,
+      upiId: user.upiId,
+      cooldownUntil: user.cooldownUntil,
+      lastPaidAt: user.payouts?.at(-1)?.paidAt,
+    }));
   }
 
   async listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage> {
@@ -60,5 +76,17 @@ export class InMemoryUserRepository implements UserRepository {
 
   async count(): Promise<number> {
     return this.users.size;
+  }
+
+  async setPayoutQr(id: string, image: string | null): Promise<void> {
+    const user = this.users.get(id);
+    if (!user) return;
+    if (image) this.payoutQrs.set(id, image);
+    else this.payoutQrs.delete(id);
+    this.users.set(id, { ...user, hasPayoutQr: Boolean(image) });
+  }
+
+  async getPayoutQr(id: string): Promise<string | null> {
+    return this.payoutQrs.get(id) ?? null;
   }
 }

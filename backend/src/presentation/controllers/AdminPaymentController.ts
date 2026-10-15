@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import { toPublicUser } from "../../domain/entities/User";
+import { rewardInr, toPublicUser } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
 import { UserRepository } from "../../domain/repositories/UserRepository";
+import { getAdminPayoutReport, markEmployeePaid, markEmployeeUnpaid } from "../../application/use-cases/EmployeeAccounts";
 import { toPaymentDto } from "../../application/dto/payment.dto";
 import { PaymentUseCaseDeps } from "../../application/use-cases/CreatePaymentSession";
 import {
@@ -25,6 +26,7 @@ import {
   createEmployeeSchema,
   employeeActiveSchema,
   employeeListSchema,
+  payoutListSchema,
   bulkDeleteSchema,
   bulkRewardSchema,
   employeePasswordSchema,
@@ -33,6 +35,58 @@ import {
 
 export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }) {
   return {
+    async payouts(req: Request, res: Response, next: NextFunction) {
+      try {
+        const query = payoutListSchema.parse(req.query);
+        res.json(
+          await getAdminPayoutReport(deps.users, deps.payments, deps.now(), {
+            offset: query.offset ?? 0,
+            limit: query.limit ?? 8,
+            q: query.q,
+            unpaidOnly: query.unpaid,
+          }),
+        );
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async payoutQr(req: Request, res: Response, next: NextFunction) {
+      try {
+        const qrImage = await deps.users.getPayoutQr(req.params.id);
+        if (!qrImage) {
+          res.status(404).json({ error: "No payment QR uploaded" });
+          return;
+        }
+        res.setHeader("Cache-Control", "no-store");
+        res.json({ qrImage });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async markPaid(req: Request, res: Response, next: NextFunction) {
+      try {
+        const employee = await markEmployeePaid(deps.users, deps.payments, req.params.id, deps.now());
+        await publishPayout(deps, employee.id);
+        logger.info("employee marked paid", { employeeId: employee.id, paidInr: employee.paidInr });
+        res.json({ employee: toPublicUser(employee) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async markUnpaid(req: Request, res: Response, next: NextFunction) {
+      try {
+        const employee = await markEmployeeUnpaid(deps.users, req.params.id);
+        await publishPayout(deps, employee.id);
+        logger.info("employee marked unpaid", { employeeId: employee.id, paidInr: employee.paidInr });
+        res.json({ employee: toPublicUser(employee) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async list(req: Request, res: Response, next: NextFunction) {
       try {
         const query = adminQuerySchema.parse(req.query);
@@ -187,4 +241,18 @@ export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users:
       }
     },
   };
+}
+
+async function publishPayout(deps: PaymentUseCaseDeps & { users: UserRepository }, employeeId: string) {
+  const employee = await deps.users.findById(employeeId);
+  if (!employee) {
+    return;
+  }
+  const counts = await deps.payments.countOutcomes(employeeId);
+  const earnedInr = counts.passed * rewardInr(employee.successRewardInr);
+  const paidInr = rewardInr(employee.paidInr);
+  deps.events.publish({
+    type: "payout-updated",
+    data: { employeeId, paidInr, earnedInr, unpaidInr: Math.max(0, earnedInr - paidInr) },
+  });
 }

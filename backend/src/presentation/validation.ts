@@ -86,6 +86,21 @@ export const bulkDeleteSchema = z
     }
   });
 
+export const payoutListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => value || undefined),
+  unpaid: z
+    .enum(["1", "0", "true", "false"])
+    .optional()
+    .transform((value) => value === "1" || value === "true"),
+});
+
 export const employeeListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
@@ -95,6 +110,26 @@ export const employeeListSchema = z.object({
     .max(80)
     .optional()
     .transform((value) => value || undefined),
+});
+
+const upiIdPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,255}@[a-zA-Z][a-zA-Z0-9.-]{1,63}$/;
+
+export const payoutUpiSchema = z.object({
+  upiId: z
+    .string()
+    .trim()
+    .max(100)
+    .refine((value) => value === "" || upiIdPattern.test(value), "Enter a UPI ID like name@bank"),
+});
+
+export const payoutQrSchema = z.object({
+  qrImage: z
+    .string()
+    .max(400_000)
+    .refine(
+      (value) => value.startsWith("data:image/png;base64,") || value.startsWith("data:image/jpeg;base64,"),
+      "Upload a PNG or JPEG QR image",
+    ),
 });
 
 export const paymentListSchema = z.object({
