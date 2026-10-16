@@ -15,7 +15,12 @@ export function createInternalPaymentRoutes(
 ): Router {
   const router = Router();
   const controller = createPaymentController(deps, sse);
-  router.use(createAuthentication(deps.users, deps.tokens), authorize(UserRole.ADMIN), privateNoStore, rateLimit(60, 60_000));
+  router.use(
+    createAuthentication(deps.users, deps.tokens),
+    authorize(UserRole.ADMIN, UserRole.EXTENSION_USER),
+    privateNoStore,
+    rateLimit(60, 60_000),
+  );
   router.post("/", (req, res, next) => void controller.create(req, res, next));
   router.post("/heartbeat", (req, res, next) => void controller.heartbeat(req, res, next));
   router.patch("/:id/status", (req, res, next) => void controller.updateStatus(req, res, next));

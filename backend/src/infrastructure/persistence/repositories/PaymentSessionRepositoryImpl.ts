@@ -239,12 +239,22 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
     return { passed, failed };
   }
 
-  async countStrikes(employeeId: string, since: Date): Promise<number> {
-    return PaymentModel.countDocuments({
+  async consecutiveStrikes(employeeId: string, since: Date): Promise<number> {
+    const docs = await PaymentModel.find({
       assignedEmployeeId: employeeId,
-      status: { $in: [PaymentStatus.FAILED, PaymentStatus.EXPIRED] },
+      status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED] },
       completedAt: { $gt: since },
-    });
+    })
+      .sort({ completedAt: -1 })
+      .limit(2)
+      .select({ status: 1 })
+      .lean();
+    let count = 0;
+    for (const doc of docs) {
+      if (doc.status !== PaymentStatus.FAILED && doc.status !== PaymentStatus.EXPIRED) break;
+      count += 1;
+    }
+    return count;
   }
 
   async countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>> {
@@ -258,6 +268,55 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
       { $group: { _id: "$assignedEmployeeId", count: { $sum: 1 } } },
     ]);
     return rows.map((row) => ({ employeeId: row._id, count: row.count }));
+  }
+
+  async countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>> {
+    const rows = await PaymentModel.aggregate<{ _id: string; passed: number; failed: number }>([
+      { $match: { createdByUserId: { $type: "string" }, status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED] } } },
+      {
+        $group: {
+          _id: "$createdByUserId",
+          passed: { $sum: { $cond: [{ $eq: ["$status", PaymentStatus.SUCCESS] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $eq: ["$status", PaymentStatus.FAILED] }, 1, 0] } },
+        },
+      },
+    ]);
+    return rows.map((row) => ({ userId: row._id, passed: row.passed, failed: row.failed }));
+  }
+
+  async countTerminalInRange(from: Date, to: Date): Promise<{
+    passed: number;
+    failed: number;
+    expired: number;
+    passedByEmployee: Array<{ employeeId: string; count: number }>;
+  }> {
+    const [result] = await PaymentModel.aggregate<{
+      totals: Array<{ _id: PaymentStatus; count: number }>;
+      passedByEmployee: Array<{ _id: string; count: number }>;
+    }>([
+      {
+        $match: {
+          completedAt: { $gte: from, $lt: to },
+          status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED] },
+        },
+      },
+      {
+        $facet: {
+          totals: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+          passedByEmployee: [
+            { $match: { status: PaymentStatus.SUCCESS, assignedEmployeeId: { $type: "string" } } },
+            { $group: { _id: "$assignedEmployeeId", count: { $sum: 1 } } },
+          ],
+        },
+      },
+    ]);
+    const totals = new Map((result?.totals ?? []).map((row) => [row._id, row.count]));
+    return {
+      passed: totals.get(PaymentStatus.SUCCESS) ?? 0,
+      failed: totals.get(PaymentStatus.FAILED) ?? 0,
+      expired: totals.get(PaymentStatus.EXPIRED) ?? 0,
+      passedByEmployee: (result?.passedByEmployee ?? []).map((row) => ({ employeeId: row._id, count: row.count })),
+    };
   }
 
   async findDueForExpiry(now: Date): Promise<PaymentSession[]> {

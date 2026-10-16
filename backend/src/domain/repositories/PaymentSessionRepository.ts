@@ -14,8 +14,15 @@ export interface PaymentSessionRepository {
   listAll(filter: PaymentListFilter): Promise<PaymentSession[]>;
   listPage(filter: PaymentListFilter, offset: number, limit: number): Promise<{ sessions: PaymentSession[]; total: number }>;
   countOutcomes(employeeId: string): Promise<{ passed: number; failed: number }>;
-  countStrikes(employeeId: string, since: Date): Promise<number>;
+  consecutiveStrikes(employeeId: string, since: Date): Promise<number>;
   countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>>;
+  countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>>;
+  countTerminalInRange(from: Date, to: Date): Promise<{
+    passed: number;
+    failed: number;
+    expired: number;
+    passedByEmployee: Array<{ employeeId: string; count: number }>;
+  }>;
   findDueForExpiry(now: Date): Promise<PaymentSession[]>;
   nextCode(): Promise<string>;
 }

@@ -9,7 +9,7 @@ export const DEFAULT_SUCCESS_REWARD_INR = 40;
 
 export async function createEmployeeAccount(
   users: UserRepository,
-  input: { name: string; email: string; password: string },
+  input: { name: string; email: string; password: string; role?: UserRole.EMPLOYEE | UserRole.EXTENSION_USER },
 ): Promise<User> {
   const email = input.email.toLowerCase();
   if (await users.findByEmail(email)) {
@@ -20,7 +20,7 @@ export async function createEmployeeAccount(
     name: input.name.trim(),
     email,
     passwordHash: await hashPassword(input.password),
-    role: UserRole.EMPLOYEE,
+    role: input.role ?? UserRole.EMPLOYEE,
     active: true,
     emailVerified: true,
     successRewardInr: DEFAULT_SUCCESS_REWARD_INR,
@@ -33,7 +33,7 @@ export async function requireActiveEmployee(users: UserRepository, employeeId: s
     throw new NotFoundError("Choose an active employee");
   }
   if (isCoolingDown(employee, new Date())) {
-    throw new ForbiddenError("This account is paused for 3 hours after failed QRs");
+    throw new ForbiddenError("This account is paused for 3 hours after two failed or expired QRs in a row");
   }
   return employee;
 }

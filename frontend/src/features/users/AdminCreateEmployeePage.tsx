@@ -8,6 +8,7 @@ export function AdminCreateEmployeePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"EMPLOYEE" | "EXTENSION_USER">("EMPLOYEE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -18,11 +19,12 @@ export function AdminCreateEmployeePage() {
     setError(null);
     setNotice(null);
     try {
-      await paymentApi.createEmployee({ name, email, password });
+      await paymentApi.createEmployee({ name, email, password, role });
       setName("");
       setEmail("");
       setPassword("");
-      setNotice("Employee created. They start at ₹40 per passed QR.");
+      setRole("EMPLOYEE");
+      setNotice(role === "EXTENSION_USER" ? "Extension user created. They sign in from the extension." : "Employee created. They start at ₹40 per passed QR.");
       onEmployeeCreated?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create the account");
@@ -36,11 +38,22 @@ export function AdminCreateEmployeePage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Admin</p>
-          <h1>New employee</h1>
-          <p className="muted">The account is active immediately and starts at ₹40 per passed QR.</p>
+          <h1>New account</h1>
+          <p className="muted">Employees use the dashboard. Extension users only sign in from the extension and can send QRs.</p>
         </div>
       </div>
       <form className="grid gap-3 rounded-xl border border-border bg-card p-4" onSubmit={onSubmit}>
+        <label className="grid gap-1 text-sm text-muted-foreground">
+          Role
+          <select
+            className="h-9 rounded-lg border border-input bg-background px-2 text-foreground"
+            value={role}
+            onChange={(event) => setRole(event.target.value as "EMPLOYEE" | "EXTENSION_USER")}
+          >
+            <option value="EMPLOYEE">Employee</option>
+            <option value="EXTENSION_USER">Extension user</option>
+          </select>
+        </label>
         <label className="grid gap-1 text-sm text-muted-foreground">
           Name
           <input

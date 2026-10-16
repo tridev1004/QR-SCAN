@@ -43,6 +43,18 @@ export class InMemoryUserRepository implements UserRepository {
     }));
   }
 
+  async sumPayoutsBetween(from: Date, to: Date): Promise<number> {
+    let paid = 0;
+    for (const user of this.users.values()) {
+      if (user.role !== UserRole.EMPLOYEE) continue;
+      for (const entry of user.payouts ?? []) {
+        const at = entry.paidAt.getTime();
+        if (at >= from.getTime() && at < to.getTime()) paid += entry.amountInr;
+      }
+    }
+    return paid;
+  }
+
   async listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage> {
     const users = this.sortedByRole(role, q);
     return {

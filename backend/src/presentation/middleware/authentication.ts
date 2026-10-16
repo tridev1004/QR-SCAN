@@ -21,7 +21,7 @@ export function createAuthentication(users: UserRepository, tokens: TokenService
       res.status(401).json({ error: "Authentication required" });
       return;
     }
-    if (user.role === UserRole.EMPLOYEE && !user.active) {
+    if ((user.role === UserRole.EMPLOYEE || user.role === UserRole.EXTENSION_USER) && !user.active) {
       res.status(403).json({ error: "This account is inactive" });
       return;
     }

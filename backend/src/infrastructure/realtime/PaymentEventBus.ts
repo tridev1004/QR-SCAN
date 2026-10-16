@@ -28,6 +28,10 @@ export type PaymentStreamEvent =
         unpaidInr: number;
         earnedInr: number;
       };
+    }
+  | {
+      type: "pause-cleared";
+      data: { employeeId: string };
     };
 
 type Listener = (event: PaymentStreamEvent) => void;

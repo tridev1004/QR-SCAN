@@ -81,8 +81,40 @@ export const paymentApi = {
   ownPayoutQr(): Promise<{ qrImage: string }> {
     return api("/api/payments/payout-qr");
   },
-  createEmployee(input: { name: string; email: string; password: string }): Promise<{ employee: Employee }> {
+  statistics(range: { from: string; to: string }): Promise<{
+    from: string;
+    to: string;
+    passed: number;
+    failed: number;
+    expired: number;
+    paidInr: number;
+    unpaidInr: number;
+  }> {
+    const params = new URLSearchParams({ from: range.from, to: range.to });
+    return api(`/api/admin/statistics?${params.toString()}`);
+  },
+  extensionUsers(): Promise<{
+    passedCount: number;
+    failedCount: number;
+    earnedInr: number;
+    users: Array<{
+      id: string;
+      name: string;
+      email: string;
+      active: boolean;
+      successRewardInr: number;
+      passedCount: number;
+      failedCount: number;
+      earnedInr: number;
+    }>;
+  }> {
+    return api("/api/admin/extension-users");
+  },
+  createEmployee(input: { name: string; email: string; password: string; role: "EMPLOYEE" | "EXTENSION_USER" }): Promise<{ employee: Employee }> {
     return api("/api/admin/employees", { method: "POST", body: JSON.stringify(input) });
+  },
+  clearEmployeePause(id: string): Promise<{ employee: Employee }> {
+    return api(`/api/admin/employees/${id}/resume`, { method: "POST" });
   },
   setEmployeeActive(id: string, active: boolean): Promise<{ employee: Employee }> {
     return api(`/api/admin/employees/${id}`, { method: "PATCH", body: JSON.stringify({ active }) });

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { IndianRupee, LogOut, QrCode, UserPlus, Users } from "lucide-react";
+import { BarChart3, IndianRupee, LogOut, MonitorSmartphone, QrCode, UserPlus, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,12 @@ export function AdminSidebar({ name, onSignOut }: { name: string; onSignOut: () 
         </SidebarLink>
         <SidebarLink to="/admin/payouts" icon={<IndianRupee />}>
           Payouts
+        </SidebarLink>
+        <SidebarLink to="/admin/extensions" icon={<MonitorSmartphone />}>
+          Extensions
+        </SidebarLink>
+        <SidebarLink to="/admin/statistics" icon={<BarChart3 />}>
+          Statistics
         </SidebarLink>
       </nav>
       <div className="mt-4 border-t border-border pt-3">

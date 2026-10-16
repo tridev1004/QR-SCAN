@@ -27,6 +27,7 @@ export interface UserRepository {
   listByRole(role: UserRole): Promise<User[]>;
   listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage>;
   listEmployeePayoutSources(): Promise<EmployeePayoutSource[]>;
+  sumPayoutsBetween(from: Date, to: Date): Promise<number>;
   create(user: User): Promise<User>;
   update(user: User): Promise<User>;
   delete(id: string): Promise<void>;

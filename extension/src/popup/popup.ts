@@ -47,7 +47,7 @@ signInForm?.addEventListener("submit", (event) => {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email?.value ?? "", password: password?.value ?? "", portal: "admin" }),
+        body: JSON.stringify({ email: email?.value ?? "", password: password?.value ?? "", portal: "extension" }),
       });
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -58,8 +58,8 @@ signInForm?.addEventListener("submit", (event) => {
         setStatus(body.error ?? "Login failed", "error");
         return;
       }
-      if (body.user.role !== "ADMIN") {
-        setStatus("Sign in with an admin account", "error");
+      if (body.user.role !== "ADMIN" && body.user.role !== "EXTENSION_USER") {
+        setStatus("Sign in with an admin or extension account", "error");
         return;
       }
       await chrome.storage.session.remove(["apiBaseUrl"]);

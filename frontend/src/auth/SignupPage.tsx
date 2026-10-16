@@ -16,8 +16,11 @@ export function SignupPage() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) {
-    return <Navigate to={user.role === "ADMIN" ? "/admin/users" : "/dashboard"} replace />;
+  if (user?.role === "ADMIN") {
+    return <Navigate to="/admin/users" replace />;
+  }
+  if (user?.role === "EMPLOYEE") {
+    return <Navigate to="/dashboard" replace />;
   }
 
   async function onSubmit(event: FormEvent) {

@@ -1,4 +1,5 @@
 export enum UserRole {
   ADMIN = "ADMIN",
   EMPLOYEE = "EMPLOYEE",
+  EXTENSION_USER = "EXTENSION_USER",
 }

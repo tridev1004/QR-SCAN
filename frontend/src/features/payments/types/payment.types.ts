@@ -90,7 +90,8 @@ export type PaymentStreamEvent =
       };
     }
   | { type: "payment-assigned"; data: PaymentSession }
-  | { type: "payout-updated"; data: { employeeId: string; paidInr: number; unpaidInr: number; earnedInr: number } };
+  | { type: "payout-updated"; data: { employeeId: string; paidInr: number; unpaidInr: number; earnedInr: number } }
+  | { type: "pause-cleared"; data: { employeeId: string } };
 
 export function isTerminal(status: PaymentStatus): boolean {
   return status === "SUCCESS" || status === "FAILED" || status === "EXPIRED";

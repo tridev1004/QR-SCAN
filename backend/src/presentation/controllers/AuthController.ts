@@ -24,18 +24,29 @@ export function createAuthController(
           return;
         }
         if (body.portal === "employee" && user.role !== UserRole.EMPLOYEE) {
-          res.status(403).json({ error: "Use the admin sign-in" });
+          res.status(403).json({
+            error: user.role === UserRole.EXTENSION_USER ? "Extension accounts sign in from the extension" : "Use the admin sign-in",
+          });
           return;
         }
         if (body.portal === "admin" && user.role !== UserRole.ADMIN) {
-          res.status(403).json({ error: "Use the employee sign-in" });
+          res.status(403).json({
+            error:
+              user.role === UserRole.EXTENSION_USER
+                ? "Extension accounts cannot use the admin dashboard"
+                : "Use the employee sign-in",
+          });
+          return;
+        }
+        if (body.portal === "extension" && user.role !== UserRole.ADMIN && user.role !== UserRole.EXTENSION_USER) {
+          res.status(403).json({ error: "Sign in with an admin or extension account" });
           return;
         }
         if (user.role === UserRole.EMPLOYEE && user.emailVerified === false) {
           res.status(403).json({ error: "Confirm your email before signing in" });
           return;
         }
-        if (user.role === UserRole.EMPLOYEE && !user.active) {
+        if ((user.role === UserRole.EMPLOYEE || user.role === UserRole.EXTENSION_USER) && !user.active) {
           res.status(403).json({ error: "This account is inactive" });
           return;
         }

@@ -118,14 +118,23 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
     };
   }
 
-  async countStrikes(employeeId: string, since: Date): Promise<number> {
-    return [...this.sessions.values()].filter(
-      (item) =>
-        item.assignedEmployeeId === employeeId &&
-        (item.status === PaymentStatus.FAILED || item.status === PaymentStatus.EXPIRED) &&
-        item.completedAt !== undefined &&
-        item.completedAt.getTime() > since.getTime(),
-    ).length;
+  async consecutiveStrikes(employeeId: string, since: Date): Promise<number> {
+    const recent = [...this.sessions.values()]
+      .filter(
+        (item) =>
+          item.assignedEmployeeId === employeeId &&
+          (item.status === PaymentStatus.SUCCESS || item.status === PaymentStatus.FAILED || item.status === PaymentStatus.EXPIRED) &&
+          item.completedAt !== undefined &&
+          item.completedAt.getTime() > since.getTime(),
+      )
+      .sort((left, right) => (right.completedAt?.getTime() ?? 0) - (left.completedAt?.getTime() ?? 0))
+      .slice(0, 2);
+    let count = 0;
+    for (const item of recent) {
+      if (item.status !== PaymentStatus.FAILED && item.status !== PaymentStatus.EXPIRED) break;
+      count += 1;
+    }
+    return count;
   }
 
   async countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>> {
@@ -136,6 +145,45 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
       counts.set(item.assignedEmployeeId, (counts.get(item.assignedEmployeeId) ?? 0) + 1);
     }
     return [...counts.entries()].map(([employeeId, count]) => ({ employeeId, count }));
+  }
+
+  async countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>> {
+    const counts = new Map<string, { passed: number; failed: number }>();
+    for (const item of this.sessions.values()) {
+      if (!item.createdByUserId) continue;
+      if (item.status !== PaymentStatus.SUCCESS && item.status !== PaymentStatus.FAILED) continue;
+      const current = counts.get(item.createdByUserId) ?? { passed: 0, failed: 0 };
+      if (item.status === PaymentStatus.SUCCESS) current.passed += 1;
+      if (item.status === PaymentStatus.FAILED) current.failed += 1;
+      counts.set(item.createdByUserId, current);
+    }
+    return [...counts.entries()].map(([userId, count]) => ({ userId, ...count }));
+  }
+
+  async countTerminalInRange(from: Date, to: Date): Promise<{
+    passed: number;
+    failed: number;
+    expired: number;
+    passedByEmployee: Array<{ employeeId: string; count: number }>;
+  }> {
+    const inRange = [...this.sessions.values()].filter(
+      (item) =>
+        item.completedAt !== undefined &&
+        item.completedAt.getTime() >= from.getTime() &&
+        item.completedAt.getTime() < to.getTime(),
+    );
+    const passedByEmployee = new Map<string, number>();
+    for (const item of inRange) {
+      if (item.status === PaymentStatus.SUCCESS && item.assignedEmployeeId) {
+        passedByEmployee.set(item.assignedEmployeeId, (passedByEmployee.get(item.assignedEmployeeId) ?? 0) + 1);
+      }
+    }
+    return {
+      passed: inRange.filter((item) => item.status === PaymentStatus.SUCCESS).length,
+      failed: inRange.filter((item) => item.status === PaymentStatus.FAILED).length,
+      expired: inRange.filter((item) => item.status === PaymentStatus.EXPIRED).length,
+      passedByEmployee: [...passedByEmployee.entries()].map(([employeeId, count]) => ({ employeeId, count })),
+    };
   }
 
   private matching(filter: PaymentListFilter): PaymentSession[] {

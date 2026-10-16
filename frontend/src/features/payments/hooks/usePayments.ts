@@ -119,6 +119,13 @@ export function usePayments(mode: "employee" | "admin", query: AdminPaymentQuery
   usePaymentEvents(
     (event) => {
       if (!user) return;
+      if (event.type === "pause-cleared") {
+        if (user.role === "EMPLOYEE" && event.data.employeeId === user.id) {
+          setCooldownUntil(undefined);
+          void reload();
+        }
+        return;
+      }
       if (event.type === "payout-updated") {
         if (user.role === "EMPLOYEE" && event.data.employeeId === user.id) {
           setEarnings((current) =>

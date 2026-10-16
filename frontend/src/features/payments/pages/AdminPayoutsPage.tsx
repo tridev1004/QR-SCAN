@@ -44,6 +44,19 @@ export function AdminPayoutsPage() {
     };
   }, [offset, q, unpaidOnly, revision]);
 
+  async function clearPause(row: EmployeePayoutRow) {
+    setBusyId(row.id);
+    setError("");
+    try {
+      await paymentApi.clearEmployeePause(row.id);
+      setRevision((current) => current + 1);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not remove the pause");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   async function markPaid(row: EmployeePayoutRow) {
     setBusyId(row.id);
     setError("");
@@ -180,6 +193,11 @@ export function AdminPayoutsPage() {
                           >
                             Payout
                           </Button>
+                          {row.cooldownUntil ? (
+                            <Button type="button" variant="outline" size="sm" disabled={busyId === row.id} onClick={() => void clearPause(row)}>
+                              Remove pause
+                            </Button>
+                          ) : null}
                           <Button type="button" size="sm" disabled={row.unpaidInr <= 0 || busyId === row.id} onClick={() => void markPaid(row)}>
                             Mark paid
                           </Button>

@@ -35,7 +35,7 @@ export function EmployeePaymentsPage() {
       </div>
       {cooldownUntil ? (
         <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          Your account is paused until {new Date(cooldownUntil).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} after three failed or expired QRs. You will not receive new QRs until then.
+          Your account is paused until {new Date(cooldownUntil).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} after two failed or expired QRs in a row. You will not receive new QRs until then.
         </p>
       ) : null}
       {error ? <p className="form-error">{error}</p> : null}

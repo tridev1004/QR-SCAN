@@ -5,6 +5,8 @@ import { LoginPage } from "./auth/LoginPage";
 import { SignupPage } from "./auth/SignupPage";
 import { VerifyEmailPage } from "./auth/VerifyEmailPage";
 import { HomeRedirect, Layout } from "./components/Layout";
+import { AdminExtensionsPage } from "./features/payments/pages/AdminExtensionsPage";
+import { AdminStatisticsPage } from "./features/payments/pages/AdminStatisticsPage";
 import { AdminPaymentsPage } from "./features/payments/pages/AdminPaymentsPage";
 import { AdminPayoutsPage } from "./features/payments/pages/AdminPayoutsPage";
 import { EmployeePaymentsPage } from "./features/payments/pages/EmployeePaymentsPage";
@@ -27,6 +29,8 @@ export function AppRoutes() {
           <Route path="users/new" element={<AdminCreateEmployeePage />} />
             <Route path="payments" element={<AdminPaymentsPage />} />
             <Route path="payouts" element={<AdminPayoutsPage />} />
+            <Route path="extensions" element={<AdminExtensionsPage />} />
+            <Route path="statistics" element={<AdminStatisticsPage />} />
           <Route path="payments/:paymentSessionId" element={<PaymentDetailsPage />} />
         </Route>
       </Route>

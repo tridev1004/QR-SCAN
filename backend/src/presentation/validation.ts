@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PaymentStatus } from "../domain/enums/PaymentStatus";
+import { UserRole } from "../domain/enums/UserRole";
 
 export const emailSchema = z
   .string()
@@ -28,13 +29,14 @@ export const verifyEmailSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1).max(200),
-  portal: z.enum(["employee", "admin"]),
+  portal: z.enum(["employee", "admin", "extension"]),
 });
 
 export const createEmployeeSchema = z.object({
   name: z.string().trim().min(1).max(80),
   email: z.string().email(),
   password: z.string().min(6).max(200),
+  role: z.enum([UserRole.EMPLOYEE, UserRole.EXTENSION_USER]).default(UserRole.EMPLOYEE),
 });
 
 export const employeeActiveSchema = z.object({
@@ -85,6 +87,17 @@ export const bulkDeleteSchema = z
       });
     }
   });
+
+export const statisticsQuerySchema = z.object({
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
 
 export const payoutListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),

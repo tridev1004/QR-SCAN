@@ -7,7 +7,7 @@ export function eventSessionId(event: PaymentStreamEvent): string {
   if (event.type === "payment-status") {
     return event.data.paymentSessionId;
   }
-  if (event.type === "payout-updated") {
+  if (event.type === "payout-updated" || event.type === "pause-cleared") {
     return event.data.employeeId;
   }
   return event.data.id;
@@ -20,7 +20,7 @@ export function canReceivePaymentEvent(user: PublicUser, event: PaymentStreamEve
   if (user.role !== UserRole.EMPLOYEE) {
     return false;
   }
-  if (event.type === "payout-updated") {
+  if (event.type === "payout-updated" || event.type === "pause-cleared") {
     return event.data.employeeId === user.id;
   }
   if (event.type === "payment-assigned") {

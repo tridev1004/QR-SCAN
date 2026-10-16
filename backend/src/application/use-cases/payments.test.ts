@@ -10,7 +10,7 @@ import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
 import { getEmployeeDashboard, getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
 import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
-import { getAdminPayoutReport, markEmployeePaid, markEmployeeUnpaid, saveEmployeeUpiId } from "./EmployeeAccounts";
+import { clearEmployeePause, getAdminPayoutReport, getAdminStatistics, getExtensionUserStats, markEmployeePaid, markEmployeeUnpaid, saveEmployeeUpiId } from "./EmployeeAccounts";
 import { requireActiveEmployee } from "./ManageUsers";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
 
@@ -238,25 +238,40 @@ describe("payment use cases", () => {
     }
   });
 
-  it("pauses an employee for 3 hours after three failed QRs and records a payout", async () => {
+  it("pauses an employee for 3 hours after two consecutive failed or expired QRs and records a payout", async () => {
     const { deps, setNow } = setup();
     setNow(new Date());
-    for (const digit of ["1", "2", "3"]) {
-      const { session } = await createQr(deps, digit.repeat(64));
-      await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
-      await updatePaymentStatus(deps, session.id, PaymentStatus.FAILED, "failed");
-    }
+    const first = await createQr(deps, "1".repeat(64));
+    await updatePaymentStatus(deps, first.session.id, PaymentStatus.FAILED, "failed");
+    expect((await deps.users.findById(rahul.id))?.cooldownUntil).toBeUndefined();
+
+    const passed = await createQr(deps, "2".repeat(64));
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.SUCCESS);
+    const afterSuccess = await createQr(deps, "3".repeat(64));
+    await updatePaymentStatus(deps, afterSuccess.session.id, PaymentStatus.EXPIRED);
+    expect((await deps.users.findById(rahul.id))?.cooldownUntil).toBeUndefined();
+
+    const second = await createQr(deps, "4".repeat(64));
+    await updatePaymentStatus(deps, second.session.id, PaymentStatus.FAILED, "failed");
     const paused = await deps.users.findById(rahul.id);
     expect(paused?.cooldownUntil && paused.cooldownUntil.getTime()).toBeGreaterThan(Date.now());
     await expect(requireActiveEmployee(deps.users, rahul.id)).rejects.toBeInstanceOf(ForbiddenError);
+
+    const resetAt = deps.now();
+    await clearEmployeePause(deps.users, rahul.id, resetAt);
+    await expect(requireActiveEmployee(deps.users, rahul.id)).resolves.toMatchObject({ id: rahul.id });
+    const later = await createQr(deps, "5".repeat(64));
+    await updatePaymentStatus(deps, later.session.id, PaymentStatus.FAILED, "failed");
+    expect((await deps.users.findById(rahul.id))?.cooldownUntil).toBeUndefined();
 
     await deps.users.update({ ...rahul, successRewardInr: 40, cooldownUntil: new Date(0), strikeResetAt: new Date() });
     const { session } = await createQr(deps, "4".repeat(64));
     await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
     await updatePaymentStatus(deps, session.id, PaymentStatus.SUCCESS);
     const paid = await markEmployeePaid(deps.users, deps.payments, rahul.id, new Date("2026-10-01T18:00:00.000Z"));
-    expect(paid.paidInr).toBe(40);
-    expect(paid.payouts?.[0]?.amountInr).toBe(40);
+    expect(paid.paidInr).toBe(80);
+    expect(paid.payouts?.[0]?.amountInr).toBe(80);
     const unpaid = await markEmployeeUnpaid(deps.users, rahul.id);
     expect(unpaid.paidInr).toBe(0);
     expect(unpaid.payouts).toEqual([]);
@@ -316,5 +331,68 @@ describe("payment use cases", () => {
     await updatePaymentStatus(deps, ids[0], PaymentStatus.SUCCESS);
     const third = await reservePaymentSession(deps, ids[2], rahul.id);
     expect(third.assignedEmployeeId).toBe(rahul.id);
+  });
+
+  it("counts passed and failed QRs sent by an extension user", async () => {
+    const { deps } = setup();
+    await deps.users.create({
+      id: "ext",
+      name: "Scanner",
+      email: "scanner@company.local",
+      passwordHash: "x",
+      role: UserRole.EXTENSION_USER,
+      active: true,
+      successRewardInr: 40,
+    });
+    const passed = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      qrFingerprint: "9".repeat(64),
+      qrImage: "data:image/png;base64,abc",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      assignedEmployeeId: rahul.id,
+      createdByUserId: "ext",
+    });
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.SUCCESS);
+    const failed = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      qrFingerprint: "a".repeat(63) + "b",
+      qrImage: "data:image/png;base64,def",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      assignedEmployeeId: rahul.id,
+      createdByUserId: "ext",
+    });
+    await updatePaymentStatus(deps, failed.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, failed.session.id, PaymentStatus.FAILED, "failed");
+
+    const report = await getExtensionUserStats(deps.users, deps.payments);
+    expect(report.users).toEqual([
+      expect.objectContaining({ id: "ext", passedCount: 1, failedCount: 1, earnedInr: 40, successRewardInr: 40 }),
+    ]);
+  });
+
+  it("summarizes passed, failed, expired, paid, and unpaid inside a date range", async () => {
+    const { deps } = setup();
+    await deps.users.update({ ...rahul, successRewardInr: 40 });
+    const passed = await createQr(deps, "b".repeat(64));
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, passed.session.id, PaymentStatus.SUCCESS);
+    const failed = await createQr(deps, "c".repeat(64));
+    await updatePaymentStatus(deps, failed.session.id, PaymentStatus.FAILED, "failed");
+    const expired = await createQr(deps, "d".repeat(64));
+    await updatePaymentStatus(deps, expired.session.id, PaymentStatus.EXPIRED);
+    await deps.users.update({
+      ...(await deps.users.findById(rahul.id))!,
+      payouts: [{ amountInr: 20, paidAt: new Date("2026-10-01T18:00:00.000Z") }],
+      paidInr: 20,
+    });
+
+    const stats = await getAdminStatistics(
+      deps.users,
+      deps.payments,
+      new Date("2026-10-01T00:00:00+05:30"),
+      new Date("2026-10-02T00:00:00+05:30"),
+    );
+    expect(stats).toMatchObject({ passed: 1, failed: 1, expired: 1, paidInr: 20, unpaidInr: 20 });
   });
 });

@@ -11,6 +11,9 @@ export function Layout() {
   if (!user) {
     return <Navigate to={location.pathname.startsWith("/admin") ? "/admin/login" : "/login"} replace />;
   }
+  if (user.role !== "ADMIN" && user.role !== "EMPLOYEE") {
+    return <Navigate to="/login" replace />;
+  }
   if (location.pathname.startsWith("/admin") && user.role !== "ADMIN") {
     return <Navigate to="/dashboard" replace />;
   }
@@ -41,5 +44,11 @@ export function HomeRedirect() {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  return <Navigate to={user.role === "ADMIN" ? "/admin/users" : "/dashboard"} replace />;
+  if (user.role === "ADMIN") {
+    return <Navigate to="/admin/users" replace />;
+  }
+  if (user.role === "EMPLOYEE") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to="/login" replace />;
 }

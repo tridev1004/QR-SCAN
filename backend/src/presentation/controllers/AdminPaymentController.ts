@@ -2,7 +2,16 @@ import { NextFunction, Request, Response } from "express";
 import { rewardInr, toPublicUser } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
 import { UserRepository } from "../../domain/repositories/UserRepository";
-import { getAdminPayoutReport, markEmployeePaid, markEmployeeUnpaid } from "../../application/use-cases/EmployeeAccounts";
+import {
+  clearEmployeePause,
+  defaultStatisticsRange,
+  getAdminPayoutReport,
+  getAdminStatistics,
+  getExtensionUserStats,
+  markEmployeePaid,
+  markEmployeeUnpaid,
+  parseIstDate,
+} from "../../application/use-cases/EmployeeAccounts";
 import { toPaymentDto } from "../../application/dto/payment.dto";
 import { PaymentUseCaseDeps } from "../../application/use-cases/CreatePaymentSession";
 import {
@@ -27,6 +36,7 @@ import {
   employeeActiveSchema,
   employeeListSchema,
   payoutListSchema,
+  statisticsQuerySchema,
   bulkDeleteSchema,
   bulkRewardSchema,
   employeePasswordSchema,
@@ -35,6 +45,30 @@ import {
 
 export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }) {
   return {
+    async statistics(req: Request, res: Response, next: NextFunction) {
+      try {
+        const query = statisticsQuerySchema.parse(req.query);
+        const fallback = defaultStatisticsRange(deps.now());
+        const from = query.from ? parseIstDate(query.from) : fallback.from;
+        const toDay = query.to ? parseIstDate(query.to) : new Date(fallback.to.getTime() - 24 * 60 * 60 * 1000);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(toDay.getTime()) || from.getTime() > toDay.getTime()) {
+          res.status(400).json({ error: "Choose a valid date range" });
+          return;
+        }
+        res.json(await getAdminStatistics(deps.users, deps.payments, from, new Date(toDay.getTime() + 24 * 60 * 60 * 1000)));
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async extensionUsers(_req: Request, res: Response, next: NextFunction) {
+      try {
+        res.json(await getExtensionUserStats(deps.users, deps.payments));
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async payouts(req: Request, res: Response, next: NextFunction) {
       try {
         const query = payoutListSchema.parse(req.query);
@@ -113,6 +147,17 @@ export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users:
         const created = await createEmployeeAccount(deps.users, body);
         logger.info("employee created", { employeeId: created.id });
         res.status(201).json({ employee: toPublicUser(created) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async clearPause(req: Request, res: Response, next: NextFunction) {
+      try {
+        const saved = await clearEmployeePause(deps.users, req.params.id, deps.now());
+        deps.events.publish({ type: "pause-cleared", data: { employeeId: saved.id } });
+        logger.info("employee pause cleared", { employeeId: saved.id });
+        res.json({ employee: toPublicUser(saved) });
       } catch (error) {
         next(error);
       }

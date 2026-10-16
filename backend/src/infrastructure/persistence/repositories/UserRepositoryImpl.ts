@@ -125,6 +125,16 @@ export class UserRepositoryImpl implements UserRepository {
     }));
   }
 
+  async sumPayoutsBetween(from: Date, to: Date): Promise<number> {
+    const rows = await UserModel.aggregate<{ paidInr?: number }>([
+      { $match: { role: UserRole.EMPLOYEE } },
+      { $unwind: "$payouts" },
+      { $match: { "payouts.paidAt": { $gte: from, $lt: to } } },
+      { $group: { _id: null, paidInr: { $sum: "$payouts.amountInr" } } },
+    ]);
+    return rewardInr(rows[0]?.paidInr);
+  }
+
   async listByRolePage(role: UserRole, offset: number, limit: number, q?: string): Promise<UserPage> {
     const filter: Record<string, unknown> = { role };
     const needle = q?.trim();

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-export type UserRole = "ADMIN" | "EMPLOYEE";
+export type UserRole = "ADMIN" | "EMPLOYEE" | "EXTENSION_USER";
 
 export interface PublicUser {
   id: string;

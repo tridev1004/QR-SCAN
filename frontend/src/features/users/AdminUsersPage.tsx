@@ -264,6 +264,18 @@ export function AdminUsersPage() {
     }
   }
 
+  async function clearPause(employee: Employee) {
+    setError(null);
+    setNotice(null);
+    try {
+      await paymentApi.clearEmployeePause(employee.id);
+      patchEmployee(employee.id, { cooldownUntil: undefined });
+      setNotice(`${employee.name} can receive QRs again`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not remove the pause");
+    }
+  }
+
   async function toggle(employee: Employee) {
     setError(null);
     try {
@@ -370,6 +382,11 @@ export function AdminUsersPage() {
                 </button>
               </form>
               <div className="row-actions">
+                {isPaused(employee) ? (
+                  <button type="button" className="secondary" onClick={() => void clearPause(employee)}>
+                    Remove pause
+                  </button>
+                ) : null}
                 <button type="button" className="secondary" onClick={() => void toggle(employee)}>
                   {employee.active ? "Mark inactive" : "Mark active"}
                 </button>
