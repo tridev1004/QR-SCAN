@@ -91,7 +91,18 @@ export type PaymentStreamEvent =
     }
   | { type: "payment-assigned"; data: PaymentSession }
   | { type: "payout-updated"; data: { employeeId: string; paidInr: number; unpaidInr: number; earnedInr: number } }
-  | { type: "pause-cleared"; data: { employeeId: string } };
+  | { type: "pause-cleared"; data: { employeeId: string } }
+  | {
+      type: "broadcast";
+      data: { id: string; message: string; createdAt: string; expiresAt: string; active: boolean };
+    };
+
+export interface BroadcastNotice {
+  id: string;
+  message: string;
+  createdAt: string;
+  expiresAt: string;
+}
 
 export function isTerminal(status: PaymentStatus): boolean {
   return status === "SUCCESS" || status === "FAILED" || status === "EXPIRED";

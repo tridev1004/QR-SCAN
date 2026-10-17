@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { UserRole } from "../../domain/enums/UserRole";
+import { BroadcastRepository } from "../../domain/repositories/BroadcastRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { PaymentUseCaseDeps } from "../../application/use-cases/CreatePaymentSession";
 import { TokenService } from "../../infrastructure/auth/tokenService";
@@ -9,7 +10,7 @@ import { authorize } from "../middleware/authorization";
 import { privateNoStore } from "../middleware/http";
 
 export function createAdminRoutes(
-  deps: PaymentUseCaseDeps & { users: UserRepository; tokens: TokenService },
+  deps: PaymentUseCaseDeps & { users: UserRepository; tokens: TokenService; broadcasts: BroadcastRepository },
 ): Router {
   const router = Router();
   const controller = createAdminPaymentController(deps);
@@ -20,6 +21,8 @@ export function createAdminRoutes(
   router.get("/payouts", (req, res, next) => void controller.payouts(req, res, next));
   router.get("/extension-users", (req, res, next) => void controller.extensionUsers(req, res, next));
   router.get("/statistics", (req, res, next) => void controller.statistics(req, res, next));
+  router.post("/broadcasts", (req, res, next) => void controller.publishBroadcast(req, res, next));
+  router.delete("/broadcasts/:id", (req, res, next) => void controller.stopBroadcast(req, res, next));
   router.get("/employees/:id/payout-qr", (req, res, next) => void controller.payoutQr(req, res, next));
   router.post("/employees/:id/paid", (req, res, next) => void controller.markPaid(req, res, next));
   router.post("/employees/:id/unpaid", (req, res, next) => void controller.markUnpaid(req, res, next));

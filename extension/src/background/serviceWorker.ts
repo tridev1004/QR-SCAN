@@ -134,7 +134,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
       }
       if (message.type === "PAGE_STATUS" && result.ok && !result.pending) {
         if (message.payload.success) {
-          await rememberCapture(4, "Payment successful");
+          await rememberCapture(4, "Payment successful. Kindly remove the mandate from your autopay request.");
         } else if (message.payload.failure) {
           await rememberCapture(4, "Payment failed");
         }

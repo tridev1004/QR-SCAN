@@ -32,6 +32,16 @@ export type PaymentStreamEvent =
   | {
       type: "pause-cleared";
       data: { employeeId: string };
+    }
+  | {
+      type: "broadcast";
+      data: {
+        id: string;
+        message: string;
+        createdAt: string;
+        expiresAt: string;
+        active: boolean;
+      };
     };
 
 type Listener = (event: PaymentStreamEvent) => void;

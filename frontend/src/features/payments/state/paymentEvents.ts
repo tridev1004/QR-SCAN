@@ -55,7 +55,7 @@ export function applyPaymentEvent(
   event: PaymentStreamEvent,
   viewer: Pick<PublicUser, "id" | "role">,
 ): PaymentSession[] {
-  if (event.type === "payout-updated" || event.type === "pause-cleared") {
+  if (event.type === "payout-updated" || event.type === "pause-cleared" || event.type === "broadcast") {
     return sessions;
   }
   if (!canViewerSee(event, viewer)) {
@@ -111,6 +111,9 @@ function canViewerSee(event: PaymentStreamEvent, viewer: Pick<PublicUser, "id" |
   }
   if (event.type === "payout-updated" || event.type === "pause-cleared") {
     return event.data.employeeId === viewer.id;
+  }
+  if (event.type === "broadcast") {
+    return true;
   }
   if (event.type === "payment-created" && event.data.broadcast && !event.data.assignedEmployeeId) {
     return true;

@@ -88,6 +88,11 @@ export const bulkDeleteSchema = z
     }
   });
 
+export const broadcastSchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  durationMinutes: z.number().int().min(1).max(7 * 24 * 60),
+});
+
 export const statisticsQuerySchema = z.object({
   from: z
     .string()

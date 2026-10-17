@@ -13,11 +13,28 @@ import { updatePaymentStatus } from "../../application/use-cases/UpdatePaymentSt
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { PaymentSseService } from "../../infrastructure/realtime/PaymentSseService";
 import { logger } from "../../shared/logger/logger";
+import { listActiveBroadcasts } from "../../application/use-cases/Broadcasts";
+import { BroadcastRepository } from "../../domain/repositories/BroadcastRepository";
 import { saveEmployeePayoutQr, saveEmployeeUpiId } from "../../application/use-cases/EmployeeAccounts";
 import { createPaymentSchema, heartbeatSchema, paymentListSchema, payoutQrSchema, payoutUpiSchema, statusSchema } from "../validation";
 
-export function createPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }, sse: PaymentSseService) {
+export function createPaymentController(
+  deps: PaymentUseCaseDeps & { users: UserRepository; broadcasts?: BroadcastRepository },
+  sse: PaymentSseService,
+) {
   return {
+    async broadcasts(_req: Request, res: Response, next: NextFunction) {
+      try {
+        if (!deps.broadcasts) {
+          res.status(500).json({ error: "Broadcasts are not configured" });
+          return;
+        }
+        res.json({ broadcasts: await listActiveBroadcasts(deps.broadcasts, deps.now()) });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async create(req: Request, res: Response, next: NextFunction) {
       try {
         const body = createPaymentSchema.parse(req.body);

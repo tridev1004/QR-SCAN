@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, IndianRupee, LogOut, MonitorSmartphone, QrCode, UserPlus, Users } from "lucide-react";
+import { BarChart3, IndianRupee, LogOut, Megaphone, MonitorSmartphone, QrCode, UserPlus, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,9 @@ export function AdminSidebar({ name, onSignOut }: { name: string; onSignOut: () 
         </SidebarLink>
         <SidebarLink to="/admin/statistics" icon={<BarChart3 />}>
           Statistics
+        </SidebarLink>
+        <SidebarLink to="/admin/broadcasts" icon={<Megaphone />}>
+          Broadcast
         </SidebarLink>
       </nav>
       <div className="mt-4 border-t border-border pt-3">

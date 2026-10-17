@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { rewardInr, toPublicUser } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
+import { BroadcastRepository } from "../../domain/repositories/BroadcastRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
+import { publishBroadcast as createBroadcast, stopBroadcast as endBroadcast } from "../../application/use-cases/Broadcasts";
 import {
   clearEmployeePause,
   defaultStatisticsRange,
@@ -41,10 +43,37 @@ import {
   bulkRewardSchema,
   employeePasswordSchema,
   employeeRewardSchema,
+  broadcastSchema,
 } from "../validation";
 
-export function createAdminPaymentController(deps: PaymentUseCaseDeps & { users: UserRepository }) {
+export function createAdminPaymentController(
+  deps: PaymentUseCaseDeps & { users: UserRepository; broadcasts: BroadcastRepository },
+) {
   return {
+    async publishBroadcast(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = broadcastSchema.parse(req.body);
+        const broadcast = await createBroadcast(deps.broadcasts, deps.events, {
+          message: body.message,
+          durationMinutes: body.durationMinutes,
+          createdByUserId: req.user!.id,
+          now: deps.now(),
+        });
+        res.status(201).json({ broadcast });
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async stopBroadcast(req: Request, res: Response, next: NextFunction) {
+      try {
+        await endBroadcast(deps.broadcasts, deps.events, String(req.params.id), deps.now());
+        res.status(204).end();
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async statistics(req: Request, res: Response, next: NextFunction) {
       try {
         const query = statisticsQuerySchema.parse(req.query);

@@ -5,6 +5,7 @@ import { LoginPage } from "./auth/LoginPage";
 import { SignupPage } from "./auth/SignupPage";
 import { VerifyEmailPage } from "./auth/VerifyEmailPage";
 import { HomeRedirect, Layout } from "./components/Layout";
+import { AdminBroadcastsPage } from "./features/payments/pages/AdminBroadcastsPage";
 import { AdminExtensionsPage } from "./features/payments/pages/AdminExtensionsPage";
 import { AdminStatisticsPage } from "./features/payments/pages/AdminStatisticsPage";
 import { AdminPaymentsPage } from "./features/payments/pages/AdminPaymentsPage";
@@ -31,6 +32,7 @@ export function AppRoutes() {
             <Route path="payouts" element={<AdminPayoutsPage />} />
             <Route path="extensions" element={<AdminExtensionsPage />} />
             <Route path="statistics" element={<AdminStatisticsPage />} />
+            <Route path="broadcasts" element={<AdminBroadcastsPage />} />
           <Route path="payments/:paymentSessionId" element={<PaymentDetailsPage />} />
         </Route>
       </Route>

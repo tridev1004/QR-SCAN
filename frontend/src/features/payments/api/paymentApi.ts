@@ -1,5 +1,5 @@
 import { api } from "../../../api/client";
-import { Employee, EmployeeEarnings, PaymentSession, PaymentStatus, PayoutReport } from "../types/payment.types";
+import { BroadcastNotice, Employee, EmployeeEarnings, PaymentSession, PaymentStatus, PayoutReport } from "../types/payment.types";
 
 export interface AdminPaymentQuery {
   status?: PaymentStatus;
@@ -80,6 +80,15 @@ export const paymentApi = {
   },
   ownPayoutQr(): Promise<{ qrImage: string }> {
     return api("/api/payments/payout-qr");
+  },
+  broadcasts(): Promise<{ broadcasts: BroadcastNotice[] }> {
+    return api("/api/payments/broadcasts");
+  },
+  sendBroadcast(input: { message: string; durationMinutes: number }): Promise<{ broadcast: BroadcastNotice }> {
+    return api("/api/admin/broadcasts", { method: "POST", body: JSON.stringify(input) });
+  },
+  stopBroadcast(id: string): Promise<void> {
+    return api(`/api/admin/broadcasts/${id}`, { method: "DELETE" });
   },
   statistics(range: { from: string; to: string }): Promise<{
     from: string;

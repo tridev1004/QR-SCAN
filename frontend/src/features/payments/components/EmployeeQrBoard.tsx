@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { HindiText } from "./HindiText";
 import { PaymentCardGrid } from "./PaymentCardGrid";
 import { formatInr } from "../state/money";
 import { EmployeeEarnings, isTerminal, PaymentSession } from "../types/payment.types";
@@ -71,6 +72,13 @@ export function EmployeeQrBoard({
       />
       <QrGroup title="Ready to scan" payments={ready} empty="No QR is waiting to be scanned." />
       {historyControls}
+      {earnings.passedCount > 0 ? (
+        <HindiText
+          className="mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"
+          english="After a successful QR scan, kindly remove the mandate from your autopay request."
+          hindi="QR स्कैन सफल होने के बाद, कृपया अपने ऑटोपे अनुरोध से मैंडेट हटा दें।"
+        />
+      ) : null}
       <QrGroup
         title="Passed"
         payments={passed}

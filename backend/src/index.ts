@@ -5,6 +5,7 @@ import { createResendMailer } from "./infrastructure/email/resendMailer";
 import { createTokenService } from "./infrastructure/auth/tokenService";
 import { MongoPaymentQrCache } from "./infrastructure/cache/MongoPaymentQrCache";
 import { connectMongo } from "./infrastructure/persistence/mongo";
+import { BroadcastRepositoryImpl } from "./infrastructure/persistence/repositories/BroadcastRepositoryImpl";
 import { PaymentSessionRepositoryImpl } from "./infrastructure/persistence/repositories/PaymentSessionRepositoryImpl";
 import { UserRepositoryImpl } from "./infrastructure/persistence/repositories/UserRepositoryImpl";
 import { PaymentEventBus } from "./infrastructure/realtime/PaymentEventBus";
@@ -59,6 +60,7 @@ async function main() {
     payments,
     qrCache,
     events,
+    broadcasts: new BroadcastRepositoryImpl(),
     tokens,
     now: () => new Date(),
     mailer: createResendMailer(env.resendApiKey, env.resendFrom),
