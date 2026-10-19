@@ -3,6 +3,8 @@ import { UserRole } from "../enums/UserRole";
 export interface PayoutRecord {
   amountInr: number;
   paidAt: Date;
+  rangeFrom?: Date;
+  rangeTo?: Date;
 }
 
 export interface User {

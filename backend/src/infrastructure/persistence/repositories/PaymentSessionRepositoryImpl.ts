@@ -270,9 +270,22 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
     return rows.map((row) => ({ employeeId: row._id, count: row.count }));
   }
 
-  async countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>> {
+  async countFailedGrouped(): Promise<Array<{ employeeId: string; count: number }>> {
+    const rows = await PaymentModel.aggregate<{ _id: string; count: number }>([
+      { $match: { status: PaymentStatus.FAILED, assignedEmployeeId: { $type: "string" } } },
+      { $group: { _id: "$assignedEmployeeId", count: { $sum: 1 } } },
+    ]);
+    return rows.map((row) => ({ employeeId: row._id, count: row.count }));
+  }
+
+  async countCreatorOutcomes(from?: Date, to?: Date): Promise<Array<{ userId: string; passed: number; failed: number }>> {
+    const match: Record<string, unknown> = {
+      createdByUserId: { $type: "string" },
+      status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED] },
+    };
+    if (from && to) match.completedAt = { $gte: from, $lt: to };
     const rows = await PaymentModel.aggregate<{ _id: string; passed: number; failed: number }>([
-      { $match: { createdByUserId: { $type: "string" }, status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.FAILED] } } },
+      { $match: match },
       {
         $group: {
           _id: "$createdByUserId",
@@ -282,6 +295,23 @@ export class PaymentSessionRepositoryImpl implements PaymentSessionRepository {
       },
     ]);
     return rows.map((row) => ({ userId: row._id, passed: row.passed, failed: row.failed }));
+  }
+
+  async countCreatorPassedUncovered(
+    userId: string,
+    from: Date,
+    to: Date,
+    covered: Array<{ from: Date; to: Date }>,
+  ): Promise<number> {
+    const match: Record<string, unknown> = {
+      createdByUserId: userId,
+      status: PaymentStatus.SUCCESS,
+      completedAt: { $gte: from, $lt: to },
+    };
+    if (covered.length > 0) {
+      match.$nor = covered.map((span) => ({ completedAt: { $gte: span.from, $lt: span.to } }));
+    }
+    return PaymentModel.countDocuments(match);
   }
 
   async countTerminalInRange(from: Date, to: Date): Promise<{

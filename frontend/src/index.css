@@ -77,6 +77,14 @@ button:not([data-slot="button"]) {
   padding: 0.45rem 0.8rem;
 }
 
+[data-slot="calendar"] button:not([data-slot="button"]) {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: inherit;
+}
+
 button.danger:not([data-slot="button"]),
 button.secondary:not([data-slot="button"]) {
   background: white;

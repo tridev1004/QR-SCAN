@@ -154,6 +154,7 @@ export function AdminPayoutsPage() {
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Today</th>
                   <th className="px-3 py-2 font-medium">Passed</th>
+                  <th className="px-3 py-2 font-medium">Failed</th>
                   <th className="px-3 py-2 font-medium">Earned</th>
                   <th className="px-3 py-2 font-medium">Paid</th>
                   <th className="px-3 py-2 font-medium">Unpaid</th>
@@ -164,7 +165,7 @@ export function AdminPayoutsPage() {
               <tbody>
                 {report.employees.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-6 text-muted-foreground" colSpan={9}>
+                    <td className="px-3 py-6 text-muted-foreground" colSpan={10}>
                       No employees match this search.
                     </td>
                   </tr>
@@ -178,6 +179,7 @@ export function AdminPayoutsPage() {
                       <td className="px-3 py-2">{activityLabel(row)}</td>
                       <td className="px-3 py-2">{row.todayPassed}</td>
                       <td className="px-3 py-2">{row.overallPassed}</td>
+                      <td className="px-3 py-2">{row.failedCount}</td>
                       <td className="px-3 py-2">{formatInr(row.earnedInr)}</td>
                       <td className="px-3 py-2">{formatInr(row.paidInr)}</td>
                       <td className="px-3 py-2 font-medium">{formatInr(row.unpaidInr)}</td>

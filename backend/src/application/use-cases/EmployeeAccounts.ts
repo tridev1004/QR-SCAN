@@ -5,34 +5,78 @@ import { ConflictError, NotFoundError } from "../../domain/errors/DomainError";
 import { PaymentSessionRepository } from "../../domain/repositories/PaymentSessionRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 
-export async function getExtensionUserStats(users: UserRepository, payments: PaymentSessionRepository) {
+export async function getExtensionUserStats(
+  users: UserRepository,
+  payments: PaymentSessionRepository,
+  range?: { from: Date; to: Date },
+) {
   const [senders, outcomes] = await Promise.all([
     users.listByRole(UserRole.EXTENSION_USER),
-    payments.countCreatorOutcomes(),
+    payments.countCreatorOutcomes(range?.from, range?.to),
   ]);
   const byId = new Map(outcomes.map((row) => [row.userId, row]));
-  const rows = senders
-    .map((sender) => {
-      const counts = byId.get(sender.id) ?? { passed: 0, failed: 0 };
-      const rate = rewardInr(sender.successRewardInr);
-      return {
-        id: sender.id,
-        name: sender.name,
-        email: sender.email,
-        active: sender.active,
-        successRewardInr: rate,
-        passedCount: counts.passed,
-        failedCount: counts.failed,
-        earnedInr: counts.passed * rate,
-      };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+  const rows = (
+    await Promise.all(
+      senders.map(async (sender) => {
+        const counts = byId.get(sender.id) ?? { passed: 0, failed: 0 };
+        const rate = rewardInr(sender.successRewardInr);
+        const earnedInr = counts.passed * rate;
+        const uncovered = range
+          ? await payments.countCreatorPassedUncovered(sender.id, range.from, range.to, coveredRanges(sender.payouts))
+          : undefined;
+        const unpaidInr = uncovered === undefined ? Math.max(0, earnedInr - rewardInr(sender.paidInr)) : uncovered * rate;
+        return {
+          id: sender.id,
+          name: sender.name,
+          email: sender.email,
+          active: sender.active,
+          successRewardInr: rate,
+          passedCount: counts.passed,
+          failedCount: counts.failed,
+          earnedInr,
+          paidInr: Math.max(0, earnedInr - unpaidInr),
+          unpaidInr,
+        };
+      }),
+    )
+  ).sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
   return {
     passedCount: rows.reduce((sum, row) => sum + row.passedCount, 0),
     failedCount: rows.reduce((sum, row) => sum + row.failedCount, 0),
     earnedInr: rows.reduce((sum, row) => sum + row.earnedInr, 0),
+    paidInr: rows.reduce((sum, row) => sum + row.paidInr, 0),
+    unpaidInr: rows.reduce((sum, row) => sum + row.unpaidInr, 0),
     users: rows,
   };
+}
+
+export async function markExtensionUserPaid(
+  users: UserRepository,
+  payments: PaymentSessionRepository,
+  extensionUserId: string,
+  range: { from: Date; to: Date },
+  now: Date,
+): Promise<User> {
+  const sender = await users.findById(extensionUserId);
+  if (!sender || sender.role !== UserRole.EXTENSION_USER) {
+    throw new NotFoundError("Extension user not found");
+  }
+  const rate = rewardInr(sender.successRewardInr);
+  const unpaidInr = (await payments.countCreatorPassedUncovered(sender.id, range.from, range.to, coveredRanges(sender.payouts))) * rate;
+  if (unpaidInr <= 0) {
+    throw new ConflictError("Nothing is waiting to be paid");
+  }
+  return users.update({
+    ...sender,
+    paidInr: rewardInr(sender.paidInr) + unpaidInr,
+    payouts: [...(sender.payouts ?? []), { amountInr: unpaidInr, paidAt: now, rangeFrom: range.from, rangeTo: range.to }],
+  });
+}
+
+function coveredRanges(payouts: User["payouts"]): Array<{ from: Date; to: Date }> {
+  return (payouts ?? []).flatMap((payout) =>
+    payout.rangeFrom && payout.rangeTo ? [{ from: payout.rangeFrom, to: payout.rangeTo }] : [],
+  );
 }
 
 const IST_DAY_MS = 24 * 60 * 60 * 1000;
@@ -202,6 +246,7 @@ export interface EmployeePayoutRow {
   successRewardInr: number;
   todayPassed: number;
   overallPassed: number;
+  failedCount: number;
   earnedInr: number;
   paidInr: number;
   unpaidInr: number;
@@ -223,13 +268,15 @@ export async function getAdminPayoutReport(
   total: number;
   hasMore: boolean;
 }> {
-  const [employees, todayGroups, overallGroups] = await Promise.all([
+  const [employees, todayGroups, overallGroups, failedGroups] = await Promise.all([
     users.listEmployeePayoutSources(),
     payments.countSuccessGrouped(startOfTodayIst(now)),
     payments.countSuccessGrouped(),
+    payments.countFailedGrouped(),
   ]);
   const todayById = new Map(todayGroups.map((row) => [row.employeeId, row.count]));
   const overallById = new Map(overallGroups.map((row) => [row.employeeId, row.count]));
+  const failedById = new Map(failedGroups.map((row) => [row.employeeId, row.count]));
   const rows = employees
     .map((employee) => {
       const rate = rewardInr(employee.successRewardInr);
@@ -245,6 +292,7 @@ export async function getAdminPayoutReport(
         successRewardInr: rate,
         todayPassed: todayById.get(employee.id) ?? 0,
         overallPassed,
+        failedCount: failedById.get(employee.id) ?? 0,
         earnedInr,
         paidInr,
         unpaidInr: Math.max(0, earnedInr - paidInr),

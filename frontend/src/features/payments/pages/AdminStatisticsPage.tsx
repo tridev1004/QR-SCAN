@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DateField } from "@/components/DateField";
 import { paymentApi } from "../api/paymentApi";
 import { formatInr } from "../state/money";
 
@@ -50,24 +51,8 @@ export function AdminStatisticsPage() {
         </div>
       </div>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-sm text-muted-foreground">
-          From
-          <input
-            className="h-9 rounded-lg border border-input bg-background px-2 text-foreground"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-        </label>
-        <label className="grid gap-1 text-sm text-muted-foreground">
-          To
-          <input
-            className="h-9 rounded-lg border border-input bg-background px-2 text-foreground"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
+        <DateField label="From" value={from} onChange={setFrom} />
+        <DateField label="To" value={to} onChange={setTo} />
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       {stats ? (

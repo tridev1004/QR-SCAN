@@ -15,7 +15,7 @@ interface UserDocument {
   verificationExpiresAt?: Date | null;
   successRewardInr?: number;
   paidInr?: number;
-  payouts?: { amountInr: number; paidAt: Date }[];
+  payouts?: { amountInr: number; paidAt: Date; rangeFrom?: Date | null; rangeTo?: Date | null }[];
   hasPayoutQr?: boolean;
   upiId?: string | null;
   cooldownUntil?: Date | null;
@@ -35,7 +35,7 @@ const userSchema = new Schema<UserDocument>(
     verificationExpiresAt: { type: Date, default: null },
     successRewardInr: { type: Number, default: 0 },
     paidInr: { type: Number, default: 0 },
-    payouts: { type: [{ amountInr: Number, paidAt: Date }], default: [] },
+    payouts: { type: [{ amountInr: Number, paidAt: Date, rangeFrom: Date, rangeTo: Date }], default: [] },
     hasPayoutQr: { type: Boolean, default: false },
     upiId: { type: String, default: "" },
     cooldownUntil: { type: Date, default: null },
@@ -68,7 +68,12 @@ function toEntity(doc: UserDocument): User {
     verificationExpiresAt: doc.verificationExpiresAt ?? undefined,
     successRewardInr: rewardInr(doc.successRewardInr),
     paidInr: rewardInr(doc.paidInr),
-    payouts: (doc.payouts ?? []).map((entry) => ({ amountInr: rewardInr(entry.amountInr), paidAt: entry.paidAt })),
+    payouts: (doc.payouts ?? []).map((entry) => ({
+      amountInr: rewardInr(entry.amountInr),
+      paidAt: entry.paidAt,
+      rangeFrom: entry.rangeFrom ?? undefined,
+      rangeTo: entry.rangeTo ?? undefined,
+    })),
     hasPayoutQr: doc.hasPayoutQr === true,
     upiId: doc.upiId || undefined,
     cooldownUntil: doc.cooldownUntil ?? undefined,

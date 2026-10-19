@@ -102,10 +102,12 @@ export const paymentApi = {
     const params = new URLSearchParams({ from: range.from, to: range.to });
     return api(`/api/admin/statistics?${params.toString()}`);
   },
-  extensionUsers(): Promise<{
+  extensionUsers(range: { from: string; to: string }): Promise<{
     passedCount: number;
     failedCount: number;
     earnedInr: number;
+    paidInr: number;
+    unpaidInr: number;
     users: Array<{
       id: string;
       name: string;
@@ -115,9 +117,15 @@ export const paymentApi = {
       passedCount: number;
       failedCount: number;
       earnedInr: number;
+      paidInr: number;
+      unpaidInr: number;
     }>;
   }> {
-    return api("/api/admin/extension-users");
+    const params = new URLSearchParams({ from: range.from, to: range.to });
+    return api(`/api/admin/extension-users?${params.toString()}`);
+  },
+  markExtensionUserPaid(id: string, range: { from: string; to: string }): Promise<{ paidInr: number }> {
+    return api(`/api/admin/extension-users/${id}/paid`, { method: "POST", body: JSON.stringify(range) });
   },
   createEmployee(input: { name: string; email: string; password: string; role: "EMPLOYEE" | "EXTENSION_USER" }): Promise<{ employee: Employee }> {
     return api("/api/admin/employees", { method: "POST", body: JSON.stringify(input) });

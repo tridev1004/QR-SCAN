@@ -10,6 +10,8 @@ import {
   getAdminPayoutReport,
   getAdminStatistics,
   getExtensionUserStats,
+  markExtensionUserPaid,
+  startOfTodayIst,
   markEmployeePaid,
   markEmployeeUnpaid,
   parseIstDate,
@@ -44,6 +46,7 @@ import {
   employeePasswordSchema,
   employeeRewardSchema,
   broadcastSchema,
+  extensionPaidSchema,
 } from "../validation";
 
 export function createAdminPaymentController(
@@ -90,9 +93,29 @@ export function createAdminPaymentController(
       }
     },
 
-    async extensionUsers(_req: Request, res: Response, next: NextFunction) {
+    async extensionUsers(req: Request, res: Response, next: NextFunction) {
       try {
-        res.json(await getExtensionUserStats(deps.users, deps.payments));
+        const range = extensionRange(req, deps.now());
+        if (!range) {
+          res.status(400).json({ error: "Choose a valid date range" });
+          return;
+        }
+        res.json(await getExtensionUserStats(deps.users, deps.payments, range));
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async markExtensionPaid(req: Request, res: Response, next: NextFunction) {
+      try {
+        const body = extensionPaidSchema.parse(req.body);
+        const range = inclusiveIstRange(body.from, body.to);
+        if (!range) {
+          res.status(400).json({ error: "Choose a valid date range" });
+          return;
+        }
+        const saved = await markExtensionUserPaid(deps.users, deps.payments, String(req.params.id), range, deps.now());
+        res.json({ paidInr: saved.paidInr ?? 0 });
       } catch (error) {
         next(error);
       }
@@ -329,4 +352,32 @@ async function publishPayout(deps: PaymentUseCaseDeps & { users: UserRepository 
     type: "payout-updated",
     data: { employeeId, paidInr, earnedInr, unpaidInr: Math.max(0, earnedInr - paidInr) },
   });
+}
+
+function extensionRange(req: Request, now: Date): { from: Date; to: Date } | null {
+  const query = statisticsQuerySchema.parse(req.query);
+  const today = formatDay(startOfTodayIst(now));
+  return inclusiveIstRange(query.from ?? today, query.to ?? today);
+}
+
+function inclusiveIstRange(fromDay: string, toDay: string): { from: Date; to: Date } | null {
+  const from = parseIstDate(fromDay);
+  const to = parseIstDate(toDay);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from.getTime() > to.getTime()) {
+    return null;
+  }
+  return { from, to: new Date(to.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+function formatDay(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
 }

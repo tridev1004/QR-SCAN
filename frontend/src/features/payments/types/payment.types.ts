@@ -60,6 +60,7 @@ export interface EmployeePayoutRow {
   successRewardInr: number;
   todayPassed: number;
   overallPassed: number;
+  failedCount: number;
   earnedInr: number;
   paidInr: number;
   unpaidInr: number;

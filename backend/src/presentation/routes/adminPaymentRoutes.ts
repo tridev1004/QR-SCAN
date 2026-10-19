@@ -20,6 +20,7 @@ export function createAdminRoutes(
   router.get("/payments", (req, res, next) => void controller.list(req, res, next));
   router.get("/payouts", (req, res, next) => void controller.payouts(req, res, next));
   router.get("/extension-users", (req, res, next) => void controller.extensionUsers(req, res, next));
+  router.post("/extension-users/:id/paid", (req, res, next) => void controller.markExtensionPaid(req, res, next));
   router.get("/statistics", (req, res, next) => void controller.statistics(req, res, next));
   router.post("/broadcasts", (req, res, next) => void controller.publishBroadcast(req, res, next));
   router.delete("/broadcasts/:id", (req, res, next) => void controller.stopBroadcast(req, res, next));

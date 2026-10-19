@@ -16,7 +16,14 @@ export interface PaymentSessionRepository {
   countOutcomes(employeeId: string): Promise<{ passed: number; failed: number }>;
   consecutiveStrikes(employeeId: string, since: Date): Promise<number>;
   countSuccessGrouped(from?: Date): Promise<Array<{ employeeId: string; count: number }>>;
-  countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>>;
+  countFailedGrouped(): Promise<Array<{ employeeId: string; count: number }>>;
+  countCreatorOutcomes(from?: Date, to?: Date): Promise<Array<{ userId: string; passed: number; failed: number }>>;
+  countCreatorPassedUncovered(
+    userId: string,
+    from: Date,
+    to: Date,
+    covered: Array<{ from: Date; to: Date }>,
+  ): Promise<number>;
   countTerminalInRange(from: Date, to: Date): Promise<{
     passed: number;
     failed: number;

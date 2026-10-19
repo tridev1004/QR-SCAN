@@ -10,7 +10,7 @@ import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
 import { getEmployeeDashboard, getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
 import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
-import { clearEmployeePause, getAdminPayoutReport, getAdminStatistics, getExtensionUserStats, markEmployeePaid, markEmployeeUnpaid, saveEmployeeUpiId } from "./EmployeeAccounts";
+import { clearEmployeePause, getAdminPayoutReport, getAdminStatistics, getExtensionUserStats, markEmployeePaid, markEmployeeUnpaid, markExtensionUserPaid, saveEmployeeUpiId } from "./EmployeeAccounts";
 import { requireActiveEmployee } from "./ManageUsers";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
 
@@ -367,8 +367,23 @@ describe("payment use cases", () => {
 
     const report = await getExtensionUserStats(deps.users, deps.payments);
     expect(report.users).toEqual([
-      expect.objectContaining({ id: "ext", passedCount: 1, failedCount: 1, earnedInr: 40, successRewardInr: 40 }),
+      expect.objectContaining({ id: "ext", passedCount: 1, failedCount: 1, earnedInr: 40, successRewardInr: 40, paidInr: 0, unpaidInr: 40 }),
     ]);
+    const day = {
+      from: new Date("2026-10-01T00:00:00+05:30"),
+      to: new Date("2026-10-02T00:00:00+05:30"),
+    };
+    const today = await getExtensionUserStats(deps.users, deps.payments, day);
+    expect(today.users[0]).toMatchObject({ passedCount: 1, failedCount: 1, earnedInr: 40, unpaidInr: 40 });
+    await markExtensionUserPaid(deps.users, deps.payments, "ext", day, new Date("2026-10-01T18:00:00.000Z"));
+    const paid = await getExtensionUserStats(deps.users, deps.payments, day);
+    expect(paid.users[0]).toMatchObject({ paidInr: 40, unpaidInr: 0 });
+    expect(paid.paidInr).toBe(40);
+    const otherDays = await getExtensionUserStats(deps.users, deps.payments, {
+      from: new Date("2026-10-02T00:00:00+05:30"),
+      to: new Date("2026-10-04T00:00:00+05:30"),
+    });
+    expect(otherDays.users[0]).toMatchObject({ earnedInr: 0, paidInr: 0, unpaidInr: 0 });
   });
 
   it("summarizes passed, failed, expired, paid, and unpaid inside a date range", async () => {

@@ -147,17 +147,43 @@ export class InMemoryPaymentSessionRepository implements PaymentSessionRepositor
     return [...counts.entries()].map(([employeeId, count]) => ({ employeeId, count }));
   }
 
-  async countCreatorOutcomes(): Promise<Array<{ userId: string; passed: number; failed: number }>> {
+  async countFailedGrouped(): Promise<Array<{ employeeId: string; count: number }>> {
+    const counts = new Map<string, number>();
+    for (const item of this.sessions.values()) {
+      if (item.status !== PaymentStatus.FAILED || !item.assignedEmployeeId) continue;
+      counts.set(item.assignedEmployeeId, (counts.get(item.assignedEmployeeId) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([employeeId, count]) => ({ employeeId, count }));
+  }
+
+  async countCreatorOutcomes(from?: Date, to?: Date): Promise<Array<{ userId: string; passed: number; failed: number }>> {
     const counts = new Map<string, { passed: number; failed: number }>();
     for (const item of this.sessions.values()) {
       if (!item.createdByUserId) continue;
       if (item.status !== PaymentStatus.SUCCESS && item.status !== PaymentStatus.FAILED) continue;
+      if (from && to) {
+        if (!item.completedAt || item.completedAt.getTime() < from.getTime() || item.completedAt.getTime() >= to.getTime()) continue;
+      }
       const current = counts.get(item.createdByUserId) ?? { passed: 0, failed: 0 };
       if (item.status === PaymentStatus.SUCCESS) current.passed += 1;
       if (item.status === PaymentStatus.FAILED) current.failed += 1;
       counts.set(item.createdByUserId, current);
     }
     return [...counts.entries()].map(([userId, count]) => ({ userId, ...count }));
+  }
+
+  async countCreatorPassedUncovered(
+    userId: string,
+    from: Date,
+    to: Date,
+    covered: Array<{ from: Date; to: Date }>,
+  ): Promise<number> {
+    return [...this.sessions.values()].filter((item) => {
+      if (item.createdByUserId !== userId || item.status !== PaymentStatus.SUCCESS || !item.completedAt) return false;
+      const at = item.completedAt.getTime();
+      if (at < from.getTime() || at >= to.getTime()) return false;
+      return !covered.some((span) => at >= span.from.getTime() && at < span.to.getTime());
+    }).length;
   }
 
   async countTerminalInRange(from: Date, to: Date): Promise<{
