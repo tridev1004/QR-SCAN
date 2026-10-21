@@ -76,7 +76,7 @@ export function EmployeePayoutPage() {
   }
 
   return (
-    <section className="max-w-lg">
+    <section className="w-full max-w-lg">
       <div className="page-heading">
         <div>
           <p className="eyebrow">Employee</p>
@@ -102,7 +102,7 @@ export function EmployeePayoutPage() {
           <input className="sr-only" type="file" accept="image/png,image/jpeg" onChange={(event) => void onFile(event.target.files?.[0])} />
           <span className={cn(buttonVariants({ variant: "outline" }), "w-full")}>{savingQr ? "Saving…" : preview ? "Replace QR" : "Upload QR"}</span>
         </label>
-        {preview ? <img className="w-full max-w-sm rounded-lg border border-border bg-white object-contain" alt="Your payment QR" src={preview} /> : null}
+        {preview ? <img className="h-auto w-full max-w-sm rounded-lg border border-border bg-white object-contain" alt="Your payment QR" src={preview} /> : null}
         {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         {error ? <p className="form-error">{error}</p> : null}
       </div>

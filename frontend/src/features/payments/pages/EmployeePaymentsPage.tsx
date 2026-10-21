@@ -67,7 +67,7 @@ export function EmployeePaymentsPage() {
           onReserve={reserve}
           reserveLocked={live.filter((payment) => payment.assignedEmployeeId && !isTerminal(payment.status)).length >= 2}
           historyControls={
-            <label className="mt-4 grid max-w-xs gap-1 text-sm text-muted-foreground">
+            <label className="mt-4 grid w-full max-w-xs gap-1 text-sm text-muted-foreground">
               Search past QRs
               <input
                 className="h-8 rounded-lg border border-input bg-background px-2 text-foreground"

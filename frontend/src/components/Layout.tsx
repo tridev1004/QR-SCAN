@@ -30,9 +30,9 @@ export function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground md:flex-row">
       <EmployeeSidebar name={user.name} onSignOut={clearSession} />
-      <main className="page min-w-0 flex-1">
+      <main className="page min-w-0 flex-1 overflow-x-hidden">
         <Outlet />
       </main>
     </div>
