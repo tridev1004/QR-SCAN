@@ -78,6 +78,23 @@ describe("extension session mapping", () => {
     expect(updates.filter((update) => update.status === "FAILED")).toEqual([{ id: "backend-2", status: "FAILED" }]);
   });
 
+  it("does not send FAILED after a session has already expired", async () => {
+    const { handle, updates } = setup();
+    await handle(observed("late"));
+    await handle({ type: "SEND_QR" });
+    await handle({
+      type: "PAGE_STATUS",
+      payload: { qrFingerprint: "late", success: false, failure: false, expired: true },
+    });
+    const again = await handle({
+      type: "PAGE_STATUS",
+      payload: { qrFingerprint: "late", success: false, failure: true, expired: false },
+    });
+    expect(again).toMatchObject({ ok: true, backendPaymentSessionId: "backend-1" });
+    expect(updates.filter((update) => update.status === "EXPIRED")).toEqual([{ id: "backend-1", status: "EXPIRED" }]);
+    expect(updates.filter((update) => update.status === "FAILED")).toEqual([]);
+  });
+
   it("opens a new session when the same QR comes back after failure", async () => {
     const { handle, creates } = setup();
     await handle(observed("again"));

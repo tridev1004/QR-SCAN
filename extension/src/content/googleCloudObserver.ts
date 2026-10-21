@@ -19,6 +19,8 @@ export function startGoogleCloudObserver(options: {
 }): () => void {
   const now = options.now ?? (() => Date.now());
   const seenExpiry = new Map<string, string>();
+  const settled = new Set<string>();
+  let leftAfterSettle = false;
   let armedFingerprint: string | null = null;
   let lastFingerprint: string | null = null;
   let lastStatusKey = "";
@@ -37,16 +39,23 @@ export function startGoogleCloudObserver(options: {
   };
 
   const scheduleClose = (fingerprint: string) => {
-    if (closeTimer !== undefined || !fingerprint) {
+    if (closeTimer !== undefined || !fingerprint || settled.has(fingerprint)) {
       return;
     }
     closeTimer = setTimeout(() => {
       closeTimer = undefined;
-      if (stopped || isQrScreen(options.document) || detectSuccess(options.document) || detectFailure(options.document)) {
+      if (
+        stopped ||
+        settled.has(fingerprint) ||
+        isQrScreen(options.document) ||
+        detectSuccess(options.document) ||
+        detectFailure(options.document)
+      ) {
         return;
       }
       armedFingerprint = null;
       seenExpiry.delete(fingerprint);
+      settled.add(fingerprint);
       lastStatusKey = `${fingerprint}:closed`;
       options.send({
         type: "PAGE_STATUS",
@@ -75,6 +84,11 @@ export function startGoogleCloudObserver(options: {
         clearClose();
         const src = qr.getAttribute("src") ?? "";
         const fingerprint = await fingerprintQrImage(src);
+        if (leftAfterSettle && settled.has(fingerprint)) {
+          settled.delete(fingerprint);
+          lastStatusKey = "";
+        }
+        leftAfterSettle = false;
         lastFingerprint = fingerprint;
         if (!seenExpiry.has(fingerprint)) {
           const timerText = readCountdown(options.document);
@@ -98,6 +112,9 @@ export function startGoogleCloudObserver(options: {
         }
       } else {
         armedFingerprint = null;
+        if (settled.size > 0) {
+          leftAfterSettle = true;
+        }
       }
 
       const fingerprint = lastFingerprint ?? "";
@@ -119,6 +136,9 @@ export function startGoogleCloudObserver(options: {
         return;
       }
       clearClose();
+      if (fingerprint && settled.has(fingerprint)) {
+        return;
+      }
       const statusKey = `${fingerprint}:${success}:${failure}:${expired}`;
       if (statusKey === lastStatusKey) {
         return;
@@ -126,9 +146,17 @@ export function startGoogleCloudObserver(options: {
       lastStatusKey = statusKey;
       armedFingerprint = null;
       seenExpiry.delete(fingerprint);
+      if (fingerprint) {
+        settled.add(fingerprint);
+      }
       options.send({
         type: "PAGE_STATUS",
-        payload: { qrFingerprint: fingerprint, success, failure, expired },
+        payload: {
+          qrFingerprint: fingerprint,
+          success,
+          failure: failure && !expired,
+          expired,
+        },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";

@@ -12,7 +12,7 @@ import { requireActiveEmployee } from "./ManageUsers";
 import { updatePaymentStatus } from "./UpdatePaymentStatus";
 
 export function assertCanViewPayment(user: PublicUser, session: PaymentSession): void {
-  if (user.role === UserRole.ADMIN) {
+  if (user.role === UserRole.ADMIN || user.role === UserRole.SESSION_VIEWER) {
     return;
   }
   if (user.role === UserRole.EMPLOYEE && session.assignedEmployeeId === user.id) {
@@ -35,6 +35,9 @@ export async function getPaymentSession(deps: PaymentUseCaseDeps, user: PublicUs
 
 export async function getPaymentQr(deps: PaymentUseCaseDeps, user: PublicUser, paymentSessionId: string) {
   const session = await getPaymentSession(deps, user, paymentSessionId);
+  if (user.role === UserRole.SESSION_VIEWER) {
+    throw new ForbiddenError();
+  }
   if (user.role !== UserRole.ADMIN && session.assignedEmployeeId !== user.id) {
     throw new ForbiddenError("Reserve this QR before opening it");
   }

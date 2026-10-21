@@ -78,4 +78,29 @@ describe("SSE authorization", () => {
       }),
     ).toBe(true);
   });
+
+  it("shows sessions to a session viewer and payouts to a payer", () => {
+    const viewer: PublicUser = { ...admin, id: "viewer", role: UserRole.SESSION_VIEWER };
+    const payer: PublicUser = { ...admin, id: "payer", role: UserRole.PAYER };
+    const opened = {
+      type: "payment-created" as const,
+      data: {
+        id: "9",
+        code: "PAY-009",
+        status: PaymentStatus.QR_READY,
+        broadcast: true,
+        createdAt: "2026-10-01T12:00:00.000Z",
+        updatedAt: "2026-10-01T12:00:00.000Z",
+        history: [],
+      },
+    };
+    const payout = {
+      type: "payout-updated" as const,
+      data: { employeeId: "emp-a", paidInr: 40, unpaidInr: 0, earnedInr: 40 },
+    };
+    expect(canReceivePaymentEvent(viewer, opened)).toBe(true);
+    expect(canReceivePaymentEvent(viewer, payout)).toBe(false);
+    expect(canReceivePaymentEvent(payer, opened)).toBe(false);
+    expect(canReceivePaymentEvent(payer, payout)).toBe(true);
+  });
 });

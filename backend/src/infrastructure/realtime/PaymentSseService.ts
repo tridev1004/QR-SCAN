@@ -20,6 +20,12 @@ export function canReceivePaymentEvent(user: PublicUser, event: PaymentStreamEve
   if (user.role === UserRole.ADMIN) {
     return true;
   }
+  if (user.role === UserRole.SESSION_VIEWER) {
+    return event.type === "payment-created" || event.type === "payment-status" || event.type === "payment-assigned";
+  }
+  if (user.role === UserRole.PAYER) {
+    return event.type === "payout-updated" || event.type === "pause-cleared";
+  }
   if (user.role !== UserRole.EMPLOYEE) {
     return false;
   }

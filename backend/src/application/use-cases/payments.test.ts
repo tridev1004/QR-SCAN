@@ -126,6 +126,15 @@ describe("payment use cases", () => {
     );
   });
 
+  it("keeps EXPIRED when a later FAILED update arrives", async () => {
+    const { deps } = setup();
+    const { session } = await createQr(deps, "9".repeat(64));
+    await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, session.id, PaymentStatus.EXPIRED);
+    const again = await updatePaymentStatus(deps, session.id, PaymentStatus.FAILED, "Transaction wasn't completed");
+    expect(again.status).toBe(PaymentStatus.EXPIRED);
+  });
+
   it("expires due sessions and removes their QR", async () => {
     const { deps, qrCache, setNow } = setup();
     const { session } = await createQr(deps, "2".repeat(64));

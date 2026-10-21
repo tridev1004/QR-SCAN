@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../auth/AuthContext";
 import { PaymentCardGrid } from "../components/PaymentCardGrid";
 import { PaymentTable } from "../components/PaymentTable";
 import { ListPager } from "../components/ListPager";
@@ -10,7 +11,9 @@ import { isTerminal, Employee, PaymentSession } from "../types/payment.types";
 const PAGE_SIZE = 8;
 
 export function AdminPaymentsPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const canCancel = user?.role === "ADMIN";
   const { payments: livePayments, loading, error, cancel } = usePayments("admin", { scope: "active", limit: 50 });
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [search, setSearch] = useState("");
@@ -76,7 +79,7 @@ export function AdminPaymentsPage() {
       {loading && live.length === 0 ? <p>Loading QR codes…</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
       {!loading && live.length === 0 ? <p className="muted">No live QR yet. Send one from the extension.</p> : null}
-      <PaymentCardGrid payments={live} holderNames={names} />
+      <PaymentCardGrid payments={live} holderNames={names} showQr={user?.role === "ADMIN"} />
       <h2 className="section-title">All sessions</h2>
       <label className="mb-3 grid max-w-xs gap-1 text-sm text-muted-foreground">
         Search sessions
@@ -92,11 +95,15 @@ export function AdminPaymentsPage() {
         payments={rows}
         employees={employees}
         onOpen={(id) => navigate(`/admin/payments/${id}`)}
-        onCancel={async (id) => {
-          const payment = await cancel(id);
-          setRows((current) => current.map((row) => (row.id === id ? payment : row)));
-          return payment;
-        }}
+        onCancel={
+          canCancel
+            ? async (id) => {
+                const payment = await cancel(id);
+                setRows((current) => current.map((row) => (row.id === id ? payment : row)));
+                return payment;
+              }
+            : undefined
+        }
       />
       <ListPager
         offset={offset}

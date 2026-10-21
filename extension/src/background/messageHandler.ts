@@ -23,7 +23,7 @@ export function createMessageHandler(deps: WorkerDeps) {
   async function applyStatus(message: ExtensionMessage & { type: "PAGE_STATUS" }): Promise<WorkerResponse> {
     const fingerprint = message.payload.qrFingerprint;
     const tracked = fingerprint
-      ? deps.registry.getByFingerprint(fingerprint)
+      ? deps.registry.latestByFingerprint(fingerprint)
       : deps.registry.list().filter((session) => !isTerminalStatus(session.status)).at(-1);
     if (!tracked) {
       if (fingerprint) {
@@ -38,7 +38,7 @@ export function createMessageHandler(deps: WorkerDeps) {
     if (success === failure && success) {
       return { ok: true, backendPaymentSessionId: tracked.backendPaymentSessionId };
     }
-    const next: PaymentStatus | null = success ? "SUCCESS" : failure ? "FAILED" : expired ? "EXPIRED" : null;
+    const next: PaymentStatus | null = success ? "SUCCESS" : expired ? "EXPIRED" : failure ? "FAILED" : null;
     if (!next) {
       return { ok: true, backendPaymentSessionId: tracked.backendPaymentSessionId };
     }
@@ -46,9 +46,16 @@ export function createMessageHandler(deps: WorkerDeps) {
     if (!config) {
       return { ok: false, error: "Sign in from the extension popup" };
     }
-    await deps.api.updatePaymentStatus(config, tracked.backendPaymentSessionId, next);
-    deps.registry.updateStatus(tracked.backendPaymentSessionId, next);
-    await deps.save();
+    try {
+      const saved = await deps.api.updatePaymentStatus(config, tracked.backendPaymentSessionId, next);
+      deps.registry.updateStatus(tracked.backendPaymentSessionId, (saved.status as PaymentStatus) || next);
+      await deps.save();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "";
+      if (!/cannot change status/i.test(text)) {
+        throw error;
+      }
+    }
     return { ok: true, backendPaymentSessionId: tracked.backendPaymentSessionId };
   }
 

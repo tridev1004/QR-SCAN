@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { toPublicUser } from "../../domain/entities/User";
-import { UserRole } from "../../domain/enums/UserRole";
+import { isAdminPortalRole, UserRole } from "../../domain/enums/UserRole";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { assertSignupEmailAvailable, signupEmployee, verifySignupEmail } from "../../application/use-cases/Signup";
 import { verifyPassword } from "../../infrastructure/auth/password";
@@ -25,11 +25,14 @@ export function createAuthController(
         }
         if (body.portal === "employee" && user.role !== UserRole.EMPLOYEE) {
           res.status(403).json({
-            error: user.role === UserRole.EXTENSION_USER ? "Extension accounts sign in from the extension" : "Use the admin sign-in",
+            error:
+              user.role === UserRole.EXTENSION_USER
+                ? "Extension accounts sign in from the extension"
+                : "Use the admin sign-in",
           });
           return;
         }
-        if (body.portal === "admin" && user.role !== UserRole.ADMIN) {
+        if (body.portal === "admin" && !isAdminPortalRole(user.role)) {
           res.status(403).json({
             error:
               user.role === UserRole.EXTENSION_USER
@@ -46,7 +49,13 @@ export function createAuthController(
           res.status(403).json({ error: "Confirm your email before signing in" });
           return;
         }
-        if ((user.role === UserRole.EMPLOYEE || user.role === UserRole.EXTENSION_USER) && !user.active) {
+        if (
+          (user.role === UserRole.EMPLOYEE ||
+            user.role === UserRole.EXTENSION_USER ||
+            user.role === UserRole.PAYER ||
+            user.role === UserRole.SESSION_VIEWER) &&
+          !user.active
+        ) {
           res.status(403).json({ error: "This account is inactive" });
           return;
         }

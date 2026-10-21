@@ -260,6 +260,53 @@ describe("payment http api", () => {
     ).toBe(403);
   });
 
+  it("lets a payer open payouts and a session viewer open sessions only", async () => {
+    const adminToken = await login(admin.email, "admin123", "admin");
+    const payerCreated = await request(app)
+      .post("/api/admin/employees")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "Pay Desk", email: "payer@company.local", password: "payer123", role: "PAYER" });
+    expect(payerCreated.status).toBe(201);
+    const viewerCreated = await request(app)
+      .post("/api/admin/employees")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "Watch Desk", email: "viewer@company.local", password: "viewer123", role: "SESSION_VIEWER" });
+    expect(viewerCreated.status).toBe(201);
+
+    const payerToken = await login("payer@company.local", "payer123", "admin");
+    const viewerToken = await login("viewer@company.local", "viewer123", "admin");
+    expect((await request(app).post("/api/auth/login").send({ email: "payer@company.local", password: "payer123", portal: "employee" })).status).toBe(403);
+
+    expect((await request(app).get("/api/admin/payouts").set("Authorization", `Bearer ${payerToken}`)).status).toBe(200);
+    expect((await request(app).get("/api/admin/payments").set("Authorization", `Bearer ${payerToken}`)).status).toBe(403);
+    expect((await request(app).get("/api/admin/employees").set("Authorization", `Bearer ${payerToken}`)).status).toBe(403);
+    expect((await request(app).get("/api/admin/statistics").set("Authorization", `Bearer ${payerToken}`)).status).toBe(403);
+    expect((await request(app).post("/api/admin/employees").set("Authorization", `Bearer ${payerToken}`).send({ name: "X", email: "x@company.local", password: "secret1" })).status).toBe(403);
+
+    expect((await request(app).get("/api/admin/payments").set("Authorization", `Bearer ${viewerToken}`)).status).toBe(200);
+    expect((await request(app).get("/api/admin/payouts").set("Authorization", `Bearer ${viewerToken}`)).status).toBe(403);
+    expect((await request(app).get("/api/admin/statistics").set("Authorization", `Bearer ${viewerToken}`)).status).toBe(403);
+    expect((await request(app).post(`/api/admin/payments/${randomUUID()}/cancel`).set("Authorization", `Bearer ${viewerToken}`)).status).toBe(403);
+    expect((await request(app).get("/api/payments").set("Authorization", `Bearer ${payerToken}`)).status).toBe(403);
+    expect((await request(app).get("/api/payments").set("Authorization", `Bearer ${viewerToken}`)).status).toBe(403);
+
+    const created = await request(app)
+      .post("/api/internal/payment-sessions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        localSessionId: randomUUID(),
+        assignedEmployeeId: rahul.id,
+        qrFingerprint: "ef".repeat(32),
+        qrImage: "data:image/png;base64,cccc",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+    expect(created.status).toBe(201);
+    const id = created.body.paymentSessionId as string;
+    expect((await request(app).get(`/api/payments/${id}`).set("Authorization", `Bearer ${viewerToken}`)).status).toBe(200);
+    expect((await request(app).get(`/api/payments/${id}/qr`).set("Authorization", `Bearer ${viewerToken}`)).status).toBe(403);
+    expect((await request(app).get(`/api/payments/${id}`).set("Authorization", `Bearer ${payerToken}`)).status).toBe(403);
+  });
+
   it("pays only passed QRs using the reward stored for that employee", async () => {
     const adminToken = await login(admin.email, "admin123", "admin");
     const rahulToken = await login(rahul.email, "employee123", "employee");

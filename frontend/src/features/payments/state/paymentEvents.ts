@@ -66,7 +66,7 @@ export function applyPaymentEvent(
   }
 
   if (event.type === "payment-status") {
-    if (viewer.role !== "ADMIN" && !event.data.assignedEmployeeId && isTerminal(event.data.status)) {
+    if (viewer.role !== "ADMIN" && viewer.role !== "SESSION_VIEWER" && !event.data.assignedEmployeeId && isTerminal(event.data.status)) {
       return sessions.filter((session) => session.id !== event.data.paymentSessionId);
     }
     return sessions.map((session) =>
@@ -103,7 +103,7 @@ export function holderLabel(
 }
 
 function canViewerSee(event: PaymentStreamEvent, viewer: Pick<PublicUser, "id" | "role">): boolean {
-  if (viewer.role === "ADMIN") {
+  if (viewer.role === "ADMIN" || viewer.role === "SESSION_VIEWER") {
     return true;
   }
   if (viewer.role !== "EMPLOYEE") {

@@ -13,6 +13,7 @@ export function PaymentDetailsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const admin = user?.role === "ADMIN";
+  const sessionViewer = user?.role === "SESSION_VIEWER";
 
   useEffect(() => {
     if (!admin) return;
@@ -24,7 +25,7 @@ export function PaymentDetailsPage() {
 
   return (
     <section>
-      <Link to={admin ? "/admin/payments" : "/dashboard"} className="back-link">
+      <Link to={admin || sessionViewer ? "/admin/payments" : "/dashboard"} className="back-link">
         Back
       </Link>
       {loading ? <p>Loading session…</p> : null}

@@ -11,12 +11,14 @@ export function PaymentCardGrid({
   onReserve,
   reserveLocked = false,
   holderNames,
+  showQr = true,
 }: {
   payments: PaymentSession[];
   successRewardInr?: number;
   onReserve?: (id: string) => Promise<unknown>;
   reserveLocked?: boolean;
   holderNames?: Map<string, string>;
+  showQr?: boolean;
 }) {
   return (
     <div className="card-grid">
@@ -28,6 +30,7 @@ export function PaymentCardGrid({
           onReserve={onReserve}
           reserveLocked={reserveLocked}
           holderNames={holderNames}
+          showQr={showQr}
         />
       ))}
     </div>
@@ -40,15 +43,17 @@ function LivePaymentCard({
   onReserve,
   reserveLocked = false,
   holderNames,
+  showQr = true,
 }: {
   payment: PaymentSession;
   successRewardInr?: number;
   onReserve?: (id: string) => Promise<unknown>;
   reserveLocked?: boolean;
   holderNames?: Map<string, string>;
+  showQr?: boolean;
 }) {
   const claimable = payment.broadcast === true && !payment.assignedEmployeeId;
-  const qrImage = useQrImage(payment.id, payment.status, !claimable);
+  const qrImage = useQrImage(payment.id, payment.status, showQr && !claimable);
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
   const resultLabel =

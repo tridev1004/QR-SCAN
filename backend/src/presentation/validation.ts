@@ -36,7 +36,9 @@ export const createEmployeeSchema = z.object({
   name: z.string().trim().min(1).max(80),
   email: z.string().email(),
   password: z.string().min(6).max(200),
-  role: z.enum([UserRole.EMPLOYEE, UserRole.EXTENSION_USER]).default(UserRole.EMPLOYEE),
+  role: z
+    .enum([UserRole.EMPLOYEE, UserRole.EXTENSION_USER, UserRole.PAYER, UserRole.SESSION_VIEWER])
+    .default(UserRole.EMPLOYEE),
 });
 
 export const employeeActiveSchema = z.object({

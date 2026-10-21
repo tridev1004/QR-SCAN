@@ -28,6 +28,13 @@ export async function updatePaymentStatus(
   if (current.status === status) {
     return current;
   }
+  if (
+    isTerminal(current.status) &&
+    (status === PaymentStatus.FAILED || status === PaymentStatus.EXPIRED) &&
+    (current.status === PaymentStatus.FAILED || current.status === PaymentStatus.EXPIRED)
+  ) {
+    return current;
+  }
 
   const now = deps.now();
   const message = status === PaymentStatus.FAILED ? errorMessage ?? STATUS_MESSAGE[status] : STATUS_MESSAGE[status];

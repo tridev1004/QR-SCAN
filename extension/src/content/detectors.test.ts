@@ -230,6 +230,27 @@ describe("observer", () => {
     stop();
   });
 
+  it("keeps an expired QR expired when Google later shows a failure", async () => {
+    const document = page(qrScreen.replace("4:40", "0:00"));
+    const sent: Array<{ success: boolean; failure: boolean; expired: boolean }> = [];
+    const stop = startGoogleCloudObserver({
+      document,
+      debounceMs: 20,
+      closeDelayMs: 40,
+      now: () => Date.parse("2026-10-01T12:00:00.000Z"),
+      send: (message) => {
+        if (message.type === "PAGE_STATUS") sent.push(message.payload);
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(sent).toEqual([{ qrFingerprint: expect.any(String), success: false, failure: false, expired: true }]);
+    document.body.innerHTML = "<h1>Transaction wasn't completed</h1>";
+    document.body.setAttribute("data-step", "failed-after-expiry");
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(sent).toHaveLength(1);
+    stop();
+  });
+
   it("reports failure when the QR modal is closed", async () => {
     const document = page(qrScreen);
     const sent: boolean[] = [];

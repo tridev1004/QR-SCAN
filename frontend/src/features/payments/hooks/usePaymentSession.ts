@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../../../auth/AuthContext";
 import { paymentApi } from "../api/paymentApi";
 import { isTerminal, PaymentSession } from "../types/payment.types";
 import { usePaymentEvents } from "./usePaymentEvents";
 
 export function usePaymentSession(paymentSessionId: string) {
+  const { user } = useAuth();
   const [payment, setPayment] = useState<PaymentSession | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -12,12 +14,12 @@ export function usePaymentSession(paymentSessionId: string) {
   const reload = useCallback(async () => {
     const result = await paymentApi.get(paymentSessionId);
     setPayment(result.payment);
-    if (isTerminal(result.payment.status)) {
+    if (isTerminal(result.payment.status) || user?.role === "SESSION_VIEWER") {
       setQrImage(null);
       return;
     }
     setQrImage(await paymentApi.getQr(paymentSessionId));
-  }, [paymentSessionId]);
+  }, [paymentSessionId, user?.role]);
 
   useEffect(() => {
     let cancelled = false;

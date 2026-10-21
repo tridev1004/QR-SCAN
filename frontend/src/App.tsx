@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminLoginRoute, RequireAdmin } from "./auth/guards";
+import { adminHomePath, isAdminPortalRole } from "./auth/roles";
 import { LoginPage } from "./auth/LoginPage";
 import { SignupPage } from "./auth/SignupPage";
 import { VerifyEmailPage } from "./auth/VerifyEmailPage";
@@ -25,7 +26,7 @@ export function AppRoutes() {
       <Route path="/admin/login" element={<AdminLoginRoute />} />
       <Route path="/admin" element={<RequireAdmin />}>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="users" replace />} />
+          <Route index element={<AdminIndexRedirect />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="users/new" element={<AdminCreateEmployeePage />} />
             <Route path="payments" element={<AdminPaymentsPage />} />
@@ -44,6 +45,11 @@ export function AppRoutes() {
       </Route>
     </Routes>
   );
+}
+
+function AdminIndexRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={isAdminPortalRole(user?.role) ? adminHomePath(user?.role).replace("/admin/", "") : "users"} replace />;
 }
 
 export function App() {

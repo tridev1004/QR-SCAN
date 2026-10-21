@@ -21,7 +21,13 @@ export function createAuthentication(users: UserRepository, tokens: TokenService
       res.status(401).json({ error: "Authentication required" });
       return;
     }
-    if ((user.role === UserRole.EMPLOYEE || user.role === UserRole.EXTENSION_USER) && !user.active) {
+    if (
+      (user.role === UserRole.EMPLOYEE ||
+        user.role === UserRole.EXTENSION_USER ||
+        user.role === UserRole.PAYER ||
+        user.role === UserRole.SESSION_VIEWER) &&
+      !user.active
+    ) {
       res.status(403).json({ error: "This account is inactive" });
       return;
     }

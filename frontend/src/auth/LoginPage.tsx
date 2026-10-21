@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api/client";
 import { PublicUser, useAuth } from "./AuthContext";
+import { adminHomePath, isAdminPortalRole } from "./roles";
 
 export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
   const { user, setSession } = useAuth();
@@ -10,8 +11,8 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user?.role === "ADMIN") {
-    return <Navigate to="/admin/users" replace />;
+  if (isAdminPortalRole(user?.role)) {
+    return <Navigate to={adminHomePath(user?.role)} replace />;
   }
   if (user?.role === "EMPLOYEE") {
     return <Navigate to="/dashboard" replace />;
@@ -30,7 +31,7 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
         setError("Use the admin sign-in");
         return;
       }
-      if (portal === "admin" && result.user.role !== "ADMIN") {
+      if (portal === "admin" && !isAdminPortalRole(result.user.role)) {
         setError("Use the employee sign-in");
         return;
       }
@@ -49,7 +50,7 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
         <h1>{portal === "admin" ? "Admin sign in" : "Employee sign in"}</h1>
         <p className="muted">
           {portal === "admin"
-            ? "Create employee accounts and choose who can receive a QR."
+            ? "Sign in to the admin dashboard."
             : "Sign in to scan the QR an admin sends to you."}
         </p>
         <label>

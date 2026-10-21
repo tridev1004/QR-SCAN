@@ -9,7 +9,12 @@ export const DEFAULT_SUCCESS_REWARD_INR = 40;
 
 export async function createEmployeeAccount(
   users: UserRepository,
-  input: { name: string; email: string; password: string; role?: UserRole.EMPLOYEE | UserRole.EXTENSION_USER },
+  input: {
+    name: string;
+    email: string;
+    password: string;
+    role?: UserRole.EMPLOYEE | UserRole.EXTENSION_USER | UserRole.PAYER | UserRole.SESSION_VIEWER;
+  },
 ): Promise<User> {
   const email = input.email.toLowerCase();
   if (await users.findByEmail(email)) {

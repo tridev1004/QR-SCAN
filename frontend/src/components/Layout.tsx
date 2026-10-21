@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { adminHomePath, canOpenAdminPath, isAdminPortalRole } from "../auth/roles";
 import { AdminSidebar } from "./AdminSidebar";
 import { EmployeeSidebar } from "./EmployeeSidebar";
 
@@ -11,17 +12,23 @@ export function Layout() {
   if (!user) {
     return <Navigate to={location.pathname.startsWith("/admin") ? "/admin/login" : "/login"} replace />;
   }
-  if (user.role !== "ADMIN" && user.role !== "EMPLOYEE") {
+  if (!isAdminPortalRole(user.role) && user.role !== "EMPLOYEE") {
     return <Navigate to="/login" replace />;
   }
-  if (location.pathname.startsWith("/admin") && user.role !== "ADMIN") {
+  if (isAdminPortalRole(user.role) && !location.pathname.startsWith("/admin")) {
+    return <Navigate to={adminHomePath(user.role)} replace />;
+  }
+  if (location.pathname.startsWith("/admin") && !isAdminPortalRole(user.role)) {
     return <Navigate to="/dashboard" replace />;
+  }
+  if (location.pathname.startsWith("/admin") && !canOpenAdminPath(user.role, location.pathname)) {
+    return <Navigate to={adminHomePath(user.role)} replace />;
   }
 
   if (location.pathname.startsWith("/admin")) {
     return (
       <div className="flex min-h-screen bg-background text-foreground">
-        <AdminSidebar name={user.name} onSignOut={clearSession} />
+        <AdminSidebar name={user.name} role={user.role} onSignOut={clearSession} />
         <main className="page min-w-0 flex-1">
           <Outlet context={{ rosterVersion, onEmployeeCreated: () => setRosterVersion((current) => current + 1) }} />
         </main>
@@ -44,8 +51,8 @@ export function HomeRedirect() {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  if (user.role === "ADMIN") {
-    return <Navigate to="/admin/users" replace />;
+  if (isAdminPortalRole(user.role)) {
+    return <Navigate to={adminHomePath(user.role)} replace />;
   }
   if (user.role === "EMPLOYEE") {
     return <Navigate to="/dashboard" replace />;

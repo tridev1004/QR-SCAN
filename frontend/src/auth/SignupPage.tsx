@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "./AuthContext";
+import { adminHomePath, isAdminPortalRole } from "./roles";
 
 const EMAIL_PATTERN =
   /^(?!.*\.\.)[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
@@ -16,8 +17,8 @@ export function SignupPage() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user?.role === "ADMIN") {
-    return <Navigate to="/admin/users" replace />;
+  if (isAdminPortalRole(user?.role)) {
+    return <Navigate to={adminHomePath(user?.role)} replace />;
   }
   if (user?.role === "EMPLOYEE") {
     return <Navigate to="/dashboard" replace />;

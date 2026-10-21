@@ -3,11 +3,12 @@ import { Navigate, Outlet } from "react-router-dom";
 import { api } from "../api/client";
 import { LoginPage } from "./LoginPage";
 import { PublicUser, useAuth } from "./AuthContext";
+import { adminHomePath, isAdminPortalRole } from "./roles";
 
 export function AdminLoginRoute() {
   const { user } = useAuth();
-  if (user?.role === "ADMIN") {
-    return <Navigate to="/admin/users" replace />;
+  if (isAdminPortalRole(user?.role)) {
+    return <Navigate to={adminHomePath(user?.role)} replace />;
   }
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -20,7 +21,7 @@ export function RequireAdmin() {
   const [gate, setGate] = useState<"checking" | "allowed" | "error">("checking");
 
   useEffect(() => {
-    if (!token || user?.role !== "ADMIN") {
+    if (!token || !isAdminPortalRole(user?.role)) {
       setGate("checking");
       return;
     }
@@ -30,10 +31,13 @@ export function RequireAdmin() {
         if (cancelled) {
           return;
         }
-        if (result.user.role !== "ADMIN") {
+        if (!isAdminPortalRole(result.user.role)) {
           setSession(token, result.user);
           setGate("checking");
           return;
+        }
+        if (result.user.role !== user?.role) {
+          setSession(token, result.user);
         }
         setGate("allowed");
       })
@@ -50,7 +54,7 @@ export function RequireAdmin() {
   if (!user) {
     return <Navigate to="/admin/login" replace />;
   }
-  if (user.role !== "ADMIN") {
+  if (!isAdminPortalRole(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
   if (gate === "error") {

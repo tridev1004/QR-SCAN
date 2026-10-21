@@ -17,6 +17,10 @@ export class SessionRegistry {
       .find((session) => session.qrFingerprint === qrFingerprint && !isTerminalStatus(session.status));
   }
 
+  latestByFingerprint(qrFingerprint: string): TrackedSession | undefined {
+    return [...this.sessions].reverse().find((session) => session.qrFingerprint === qrFingerprint);
+  }
+
   add(session: TrackedSession): void {
     if (this.getByFingerprint(session.qrFingerprint)) {
       return;
