@@ -78,4 +78,65 @@ describe("employee signup verification", () => {
     expect(missingDomain.status).toBe(400);
     expect(sent).toHaveLength(before);
   });
+
+  it("rejects a disposable email address", async () => {
+    const before = sent.length;
+    const check = await request(app).post("/api/auth/signup/check").send({ email: "user@mailinator.com" });
+    expect(check.status).toBe(400);
+    expect(check.body.error).toBe("Temporary email addresses are not allowed");
+    const signup = await request(app).post("/api/auth/signup").send({
+      name: "Temp",
+      email: "user@mailinator.com",
+      password: "secret1",
+    });
+    expect(signup.status).toBe(400);
+    expect(signup.body.error).toBe("Temporary email addresses are not allowed");
+    expect(sent).toHaveLength(before);
+  });
+});
+
+describe("signup ip limit", () => {
+  it("allows three accounts from one ip then blocks the fourth", async () => {
+    const app = createApp({
+      users: new InMemoryUserRepository(),
+      payments: new InMemoryPaymentSessionRepository(),
+      qrCache: new MemoryPaymentQrCache(),
+      events: new PaymentEventBus(),
+      tokens: createTokenService("test-secret", "1h"),
+      now: () => new Date("2026-10-01T12:00:00.000Z"),
+      appPublicUrl: "http://localhost:5174",
+      mailer: {
+        async sendVerification() {
+          return;
+        },
+      },
+    });
+
+    for (const n of [1, 2, 3]) {
+      const created = await request(app).post("/api/auth/signup").send({
+        name: `User ${n}`,
+        email: `user${n}@company.local`,
+        password: "secret1",
+      });
+      expect(created.status).toBe(201);
+    }
+
+    const blocked = await request(app).post("/api/auth/signup").send({
+      name: "User 4",
+      email: "user4@company.local",
+      password: "secret1",
+    });
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error).toBe("This network has already created too many accounts");
+
+    const otherIp = await request(app)
+      .post("/api/auth/signup")
+      .set("X-Forwarded-For", "203.0.113.10")
+      .send({
+        name: "Other",
+        email: "other@company.local",
+        password: "secret1",
+      });
+    expect(otherIp.status).toBe(201);
+  });
 });

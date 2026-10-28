@@ -47,6 +47,7 @@ export function createApp(deps: AppDeps) {
   const app = express();
   const sse = new PaymentSseService(deps.events);
   const appDeps = { ...deps, broadcasts: deps.broadcasts ?? new InMemoryBroadcastRepository() };
+  app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(
     cors({

@@ -7,7 +7,8 @@ import { PaymentSseService } from "../../infrastructure/realtime/PaymentSseServi
 import { createPaymentController } from "../controllers/PaymentController";
 import { createAuthentication } from "../middleware/authentication";
 import { authorize } from "../middleware/authorization";
-import { privateNoStore, rateLimit } from "../middleware/http";
+import { privateNoStore } from "../middleware/http";
+import { createRateLimit } from "../middleware/rateLimit";
 
 export function createInternalPaymentRoutes(
   deps: PaymentUseCaseDeps & { users: UserRepository; tokens: TokenService },
@@ -19,7 +20,7 @@ export function createInternalPaymentRoutes(
     createAuthentication(deps.users, deps.tokens),
     authorize(UserRole.ADMIN, UserRole.EXTENSION_USER),
     privateNoStore,
-    rateLimit(60, 60_000),
+    createRateLimit(60, 60_000),
   );
   router.post("/", (req, res, next) => void controller.create(req, res, next));
   router.post("/heartbeat", (req, res, next) => void controller.heartbeat(req, res, next));

@@ -3,6 +3,7 @@ import { UserRole } from "../../domain/enums/UserRole";
 import { ConflictError, DomainError } from "../../domain/errors/DomainError";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { Mailer } from "../../infrastructure/email/Mailer";
+import { isDisposableEmail } from "../../infrastructure/email/disposableEmail";
 import { hashPassword } from "../../infrastructure/auth/password";
 import { DEFAULT_SUCCESS_REWARD_INR } from "./ManageUsers";
 
@@ -13,7 +14,11 @@ export function hashVerificationToken(token: string): string {
 }
 
 export async function assertSignupEmailAvailable(users: UserRepository, email: string): Promise<void> {
-  const existing = await users.findByEmail(email.toLowerCase());
+  const normalized = email.toLowerCase();
+  if (isDisposableEmail(normalized)) {
+    throw new DomainError("Temporary email addresses are not allowed", "VALIDATION", 400);
+  }
+  const existing = await users.findByEmail(normalized);
   if (existing) {
     throw new ConflictError("An account with this email already exists");
   }
