@@ -57,6 +57,12 @@ export function PaymentDetails({
             <dt>Reserved by</dt>
             <dd>{holderLabel(payment, names)}</dd>
           </div>
+          {payment.accountEmail ? (
+            <div>
+              <dt>Mailbox</dt>
+              <dd>{payment.accountEmail}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Created</dt>
             <dd>{new Date(payment.createdAt).toLocaleString()}</dd>

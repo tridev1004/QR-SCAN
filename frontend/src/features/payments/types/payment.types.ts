@@ -16,6 +16,7 @@ export interface PaymentSession {
   id: string;
   code: string;
   status: PaymentStatus;
+  accountEmail?: string;
   assignedEmployeeId?: string;
   broadcast?: boolean;
   createdByUserId?: string;

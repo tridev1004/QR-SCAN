@@ -112,6 +112,51 @@ describe("payment use cases", () => {
     ]);
   });
 
+  it("verifies the mailbox on the payment that succeeded, not another open session", async () => {
+    const verified: string[] = [];
+    const { deps } = setup();
+    deps.mailVerify = {
+      async verifyAddress(address: string) {
+        verified.push(address);
+      },
+    };
+    const first = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      qrFingerprint: "b".repeat(64),
+      qrImage: "data:image/png;base64,one",
+      accountEmail: "one@biski.org",
+      assignedEmployeeId: rahul.id,
+      createdByUserId: admin.id,
+    });
+    const second = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      qrFingerprint: "c".repeat(64),
+      qrImage: "data:image/png;base64,two",
+      accountEmail: "two@biski.org",
+      assignedEmployeeId: rahul.id,
+      createdByUserId: admin.id,
+    });
+    await updatePaymentStatus(deps, first.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, second.session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, second.session.id, PaymentStatus.SUCCESS);
+    await updatePaymentStatus(deps, first.session.id, PaymentStatus.SUCCESS);
+    expect(verified).toEqual(["two@biski.org", "one@biski.org"]);
+  });
+
+  it("does not guess a mailbox when the payment has no account email", async () => {
+    const verified: string[] = [];
+    const { deps } = setup();
+    deps.mailVerify = {
+      async verifyAddress(address: string) {
+        verified.push(address);
+      },
+    };
+    const { session } = await createQr(deps, "d".repeat(64));
+    await updatePaymentStatus(deps, session.id, PaymentStatus.WAITING_FOR_PAYMENT);
+    await updatePaymentStatus(deps, session.id, PaymentStatus.SUCCESS);
+    expect(verified).toEqual([]);
+  });
+
   it("rejects an invalid status change and allows terminal idempotency", async () => {
     const { deps, qrCache } = setup();
     const { session } = await createQr(deps, "1".repeat(64));

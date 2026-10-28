@@ -174,6 +174,7 @@ export const createPaymentSchema = z
     assignedEmployeeId: z.string().min(1).max(80).optional(),
     broadcast: z.boolean().optional(),
     qrFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    accountEmail: z.string().trim().email().max(120).optional(),
     qrImage: z
       .string()
       .max(1_500_000)
@@ -196,6 +197,7 @@ export const createPaymentSchema = z
 export const statusSchema = z.object({
   status: z.nativeEnum(PaymentStatus),
   errorMessage: z.string().max(300).optional(),
+  accountEmail: z.string().trim().email().max(120).optional(),
 });
 
 export const assignSchema = z.object({

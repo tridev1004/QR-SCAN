@@ -11,6 +11,7 @@ export interface PaymentSession {
   code: string;
   externalSessionId?: string;
   qrFingerprint: string;
+  accountEmail?: string;
   assignedEmployeeId?: string;
   broadcast?: boolean;
   createdByUserId?: string;

@@ -4,6 +4,7 @@ import { UserRepository } from "../../domain/repositories/UserRepository";
 import { isTerminal, transitionSession } from "../../domain/services/PaymentStateMachine";
 import { toPaymentDto } from "../dto/payment.dto";
 import { PaymentUseCaseDeps } from "./CreatePaymentSession";
+import { verifyMailboxQuietly } from "../../infrastructure/email/BiskiMailClient";
 import { noteEmployeeStrike } from "./EmployeeAccounts";
 
 const STATUS_MESSAGE: Partial<Record<PaymentStatus, string>> = {
@@ -19,13 +20,26 @@ export async function updatePaymentStatus(
   paymentSessionId: string,
   status: PaymentStatus,
   errorMessage?: string,
+  accountEmail?: string,
 ) {
   const current = await deps.payments.findById(paymentSessionId);
   if (!current) {
     throw new NotFoundError();
   }
 
+  const email = String(accountEmail || current.accountEmail || "").trim().toLowerCase();
+  const attachedEmail = Boolean(email && current.accountEmail !== email);
+  if (attachedEmail) {
+    current.accountEmail = email;
+  }
+
   if (current.status === status) {
+    if (attachedEmail) {
+      await deps.payments.update(current);
+      if (status === PaymentStatus.SUCCESS) {
+        await verifyMailboxQuietly(deps.mailVerify, current.accountEmail);
+      }
+    }
     return current;
   }
   if (
@@ -43,6 +57,9 @@ export async function updatePaymentStatus(
 
   if (isTerminal(saved.status)) {
     await deps.qrCache.delete(saved.id);
+  }
+  if (saved.status === PaymentStatus.SUCCESS) {
+    await verifyMailboxQuietly(deps.mailVerify, saved.accountEmail);
   }
 
   deps.events.publish({

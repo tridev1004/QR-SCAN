@@ -8,6 +8,33 @@ import { injectWatcher, isWatchedUrl } from "../shared/injectWatcher";
 
 const registry = new SessionRegistry();
 const api = createApiClient();
+
+async function loadHeld(): Promise<HeldQr | null> {
+  const stored = await chrome.storage.session.get("heldQr");
+  const value = stored.heldQr;
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const held = value as Partial<HeldQr>;
+  if (!held.qrFingerprint || !held.qrImage || !held.expiresAt) {
+    return null;
+  }
+  return {
+    qrFingerprint: held.qrFingerprint,
+    qrImage: held.qrImage,
+    expiresAt: held.expiresAt,
+    accountEmail: typeof held.accountEmail === "string" && held.accountEmail ? held.accountEmail : undefined,
+  };
+}
+
+async function saveHeld(qr: HeldQr | null): Promise<void> {
+  if (!qr) {
+    await chrome.storage.session.remove("heldQr");
+    return;
+  }
+  await chrome.storage.session.set({ heldQr: qr });
+}
+
 const handle = createMessageHandler({
   registry,
   api,
@@ -18,25 +45,8 @@ const handle = createMessageHandler({
       ? stored.selectedEmployeeId
       : null;
   },
-  loadHeld: async () => {
-    const stored = await chrome.storage.session.get("heldQr");
-    const value = stored.heldQr;
-    if (!value || typeof value !== "object") {
-      return null;
-    }
-    const held = value as Partial<HeldQr>;
-    if (!held.qrFingerprint || !held.qrImage || !held.expiresAt) {
-      return null;
-    }
-    return { qrFingerprint: held.qrFingerprint, qrImage: held.qrImage, expiresAt: held.expiresAt };
-  },
-  saveHeld: async (qr) => {
-    if (!qr) {
-      await chrome.storage.session.remove("heldQr");
-      return;
-    }
-    await chrome.storage.session.set({ heldQr: qr });
-  },
+  loadHeld,
+  saveHeld,
   save: () => saveTrackedSessions(registry),
   newLocalId: () => crypto.randomUUID(),
 });
@@ -72,6 +82,33 @@ function rememberCapture(level: number, text: string, replace = false): Promise<
 }
 
 const frameQr = new Map<number, { visible: boolean; at: number }>();
+const tabEmails = new Map<number, string>();
+
+function tabEmail(tabId: number | undefined): string | undefined {
+  return tabId === undefined ? undefined : tabEmails.get(tabId);
+}
+
+function rememberTabEmail(tabId: number | undefined, email: string | undefined) {
+  const value = String(email || "").trim().toLowerCase();
+  if (tabId === undefined || !value) {
+    return;
+  }
+  tabEmails.set(tabId, value);
+}
+
+function withTabEmail<T extends ExtensionMessage>(message: T, tabId: number | undefined): T {
+  const email = tabEmail(tabId);
+  if (!email) {
+    return message;
+  }
+  if (message.type === "QR_OBSERVED" || message.type === "SEND_QR") {
+    return { ...message, payload: { ...(message.payload || {}), accountEmail: message.payload?.accountEmail || email } };
+  }
+  if (message.type === "PAGE_STATUS") {
+    return { ...message, payload: { ...message.payload, accountEmail: message.payload.accountEmail || email } };
+  }
+  return message;
+}
 
 function anotherFrameStillHasQr(frameId: number | undefined): boolean {
   const cutoff = Date.now() - 5000;
@@ -87,6 +124,19 @@ function anotherFrameStillHasQr(frameId: number | undefined): boolean {
 }
 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse) => {
+  const tabId = sender.tab?.id;
+  if (message.type === "ACCOUNT_SEEN") {
+    rememberTabEmail(tabId, message.payload.email);
+    void (async () => {
+      const held = await loadHeld();
+      if (held && !held.accountEmail && tabEmail(tabId)) {
+        await saveHeld({ ...held, accountEmail: tabEmail(tabId) });
+      }
+    })();
+    sendResponse({ ok: true });
+    return true;
+  }
+  message = withTabEmail(message, tabId);
   if (message.type === "SCAN_STATUS" && sender.frameId !== undefined) {
     frameQr.set(sender.frameId, {
       visible: message.payload.heading && message.payload.image,
@@ -173,6 +223,10 @@ async function injectOpenTabs() {
 }
 
 void injectOpenTabs();
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabEmails.delete(tabId);
+});
 
 chrome.webNavigation.onCommitted.addListener((details) => {
   frameQr.delete(details.frameId);

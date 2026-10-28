@@ -10,6 +10,7 @@ import { PaymentSessionRepositoryImpl } from "./infrastructure/persistence/repos
 import { UserRepositoryImpl } from "./infrastructure/persistence/repositories/UserRepositoryImpl";
 import { PaymentEventBus } from "./infrastructure/realtime/PaymentEventBus";
 import { expireDuePayments } from "./application/use-cases/UpdatePaymentStatus";
+import { createBiskiMailClient } from "./infrastructure/email/BiskiMailClient";
 import { createApp } from "./presentation/app";
 import { env } from "./shared/config/env";
 import { logger } from "./shared/logger/logger";
@@ -64,6 +65,7 @@ async function main() {
     tokens,
     now: () => new Date(),
     mailer: createResendMailer(env.resendApiKey, env.resendFrom),
+    mailVerify: createBiskiMailClient(env.biskiOtpOrigin, env.biskiAdminPin),
     appPublicUrl: env.appPublicUrl,
     corsOrigins: env.corsOrigins,
   };

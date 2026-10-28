@@ -5,6 +5,7 @@ import { findQrImage, fingerprintQrImage, isQrScreen } from "./qrDetector";
 import { detectFailure, detectSuccess, matchesAnyIndicator } from "./statusDetector";
 import { expiresAtFromTimer, parseTimerToSeconds, readCountdown } from "./timerDetector";
 import { debounce } from "./debounce";
+import { readAccountEmail } from "./accountEmail";
 
 const QR = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
@@ -78,6 +79,21 @@ describe("timer", () => {
       </div>
     `);
     expect(readCountdown(document)).toBe("4:07");
+  });
+});
+
+describe("account email", () => {
+  it("reads the email from the Google account chip", () => {
+    const document = page(`
+      <a aria-label="Google Account: Test (one@other.dev)" href="https://accounts.google.com/SignOutOptions"></a>
+      <img alt="Contact support@google.com" />
+    `);
+    expect(readAccountEmail(document)).toBe("one@other.dev");
+  });
+
+  it("does not invent an email when the account chip is missing", () => {
+    const document = page("<h1>Scan QR code to use UPI</h1>");
+    expect(readAccountEmail(document)).toBeNull();
   });
 });
 

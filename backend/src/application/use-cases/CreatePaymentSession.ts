@@ -6,6 +6,7 @@ import { PaymentSessionRepository } from "../../domain/repositories/PaymentSessi
 import { transitionSession } from "../../domain/services/PaymentStateMachine";
 import { PaymentQrCache } from "../../infrastructure/cache/PaymentQrCache";
 import { PaymentEventBus } from "../../infrastructure/realtime/PaymentEventBus";
+import { MailVerifyClient } from "../../infrastructure/email/BiskiMailClient";
 import { toPaymentDto } from "../dto/payment.dto";
 
 export interface CreatePaymentSessionInput {
@@ -14,6 +15,7 @@ export interface CreatePaymentSessionInput {
   broadcast?: boolean;
   qrFingerprint: string;
   qrImage: string;
+  accountEmail?: string;
   expiresAt?: Date;
   createdByUserId: string;
 }
@@ -23,6 +25,7 @@ export interface PaymentUseCaseDeps {
   qrCache: PaymentQrCache;
   events: PaymentEventBus;
   now: () => Date;
+  mailVerify?: MailVerifyClient;
 }
 
 export async function createPaymentSession(deps: PaymentUseCaseDeps, input: CreatePaymentSessionInput) {
@@ -42,6 +45,7 @@ export async function createPaymentSession(deps: PaymentUseCaseDeps, input: Crea
     code: await deps.payments.nextCode(),
     externalSessionId: input.localSessionId,
     qrFingerprint: input.qrFingerprint,
+    accountEmail: input.accountEmail ? input.accountEmail.trim().toLowerCase() : undefined,
     assignedEmployeeId: input.broadcast ? undefined : input.assignedEmployeeId,
     broadcast: input.broadcast === true,
     createdByUserId: input.createdByUserId,

@@ -186,6 +186,22 @@ describe("extension session mapping", () => {
     expect(creates[0]?.assignedEmployeeId).toBeUndefined();
   });
 
+  it("sends the tab mailbox with the QR so success can verify that inbox", async () => {
+    const { handle, creates } = setup();
+    await handle({
+      type: "QR_OBSERVED",
+      payload: {
+        qrFingerprint: "mail",
+        qrImage: "data:image/png;base64,mail",
+        expiresAt: "2026-10-01T12:04:40.000Z",
+        sourceUrl: "https://console.cloud.google.com/billing",
+        accountEmail: "one@biski.org",
+      },
+    });
+    await handle({ type: "SEND_QR" });
+    expect(creates).toEqual([expect.objectContaining({ qrFingerprint: "mail", accountEmail: "one@biski.org" })]);
+  });
+
   it("marks the latest open session successful when the confirmation has no fingerprint", async () => {
     const { handle, updates } = setup();
     await handle(observed("live"));

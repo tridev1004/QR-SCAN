@@ -9,12 +9,17 @@ export interface HeldQr {
   qrFingerprint: string;
   qrImage: string;
   expiresAt: string;
+  accountEmail?: string;
 }
 
 export type ExtensionMessage =
   | {
       type: "SCAN_STATUS";
       payload: ScanReport;
+    }
+  | {
+      type: "ACCOUNT_SEEN";
+      payload: { email: string };
     }
   | {
       type: "QR_OBSERVED";
@@ -31,6 +36,7 @@ export type ExtensionMessage =
         success: boolean;
         failure: boolean;
         expired: boolean;
+        accountEmail?: string;
       };
     };
 

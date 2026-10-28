@@ -28,4 +28,6 @@ export const env = {
     .filter(Boolean),
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   resendFrom: process.env.RESEND_FROM ?? "UPI QR Monitor <onboarding@resend.dev>",
+  biskiOtpOrigin: process.env.BISKI_OTP_ORIGIN ?? "https://biski-otp.singhbd844.workers.dev",
+  biskiAdminPin: process.env.BISKI_ADMIN_PIN ?? "",
 };

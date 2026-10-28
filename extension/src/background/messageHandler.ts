@@ -47,7 +47,12 @@ export function createMessageHandler(deps: WorkerDeps) {
       return { ok: false, error: "Sign in from the extension popup" };
     }
     try {
-      const saved = await deps.api.updatePaymentStatus(config, tracked.backendPaymentSessionId, next);
+      const saved = await deps.api.updatePaymentStatus(
+      config,
+      tracked.backendPaymentSessionId,
+      next,
+      message.payload.accountEmail,
+    );
       deps.registry.updateStatus(tracked.backendPaymentSessionId, (saved.status as PaymentStatus) || next);
       await deps.save();
     } catch (error) {
@@ -63,7 +68,7 @@ export function createMessageHandler(deps: WorkerDeps) {
     if (message.type === "PAGE_STATUS") {
       return applyStatus(message);
     }
-    if (message.type === "SCAN_STATUS") {
+    if (message.type === "SCAN_STATUS" || message.type === "ACCOUNT_SEEN") {
       return { ok: true };
     }
 
@@ -85,6 +90,7 @@ export function createMessageHandler(deps: WorkerDeps) {
       qrFingerprint: fingerprint,
       qrImage: message.payload.qrImage,
       expiresAt: message.payload.expiresAt,
+      accountEmail: message.payload.accountEmail,
     });
     if (existing) {
       if (existing.status === "QR_READY") {
@@ -102,6 +108,7 @@ export function createMessageHandler(deps: WorkerDeps) {
           qrFingerprint: message.payload.qrFingerprint,
           qrImage: message.payload.qrImage,
           expiresAt: message.payload.expiresAt,
+          accountEmail: message.payload.accountEmail,
         });
       }
       const held = await deps.loadHeld();
@@ -130,6 +137,7 @@ export function createMessageHandler(deps: WorkerDeps) {
           qrFingerprint: held.qrFingerprint,
           qrImage: held.qrImage,
           expiresAt: held.expiresAt,
+          ...(held.accountEmail ? { accountEmail: held.accountEmail } : {}),
         });
         deps.registry.add({
           localSessionId,

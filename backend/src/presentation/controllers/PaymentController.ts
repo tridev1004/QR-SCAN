@@ -51,6 +51,7 @@ export function createPaymentController(
           broadcast,
           qrFingerprint: body.qrFingerprint,
           qrImage: body.qrImage,
+          accountEmail: body.accountEmail,
           expiresAt,
           createdByUserId: req.user!.id,
         });
@@ -71,7 +72,7 @@ export function createPaymentController(
     async updateStatus(req: Request, res: Response, next: NextFunction) {
       try {
         const body = statusSchema.parse(req.body);
-        const saved = await updatePaymentStatus(deps, req.params.id, body.status, body.errorMessage);
+        const saved = await updatePaymentStatus(deps, req.params.id, body.status, body.errorMessage, body.accountEmail);
         logger.info("payment status updated", {
           paymentSessionId: saved.id,
           status: saved.status,

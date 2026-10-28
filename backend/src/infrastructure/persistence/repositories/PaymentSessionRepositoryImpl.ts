@@ -8,6 +8,7 @@ interface PaymentDocument {
   code: string;
   externalSessionId?: string;
   qrFingerprint: string;
+  accountEmail?: string;
   assignedEmployeeId?: string;
   broadcast?: boolean;
   createdByUserId?: string;
@@ -38,6 +39,7 @@ const paymentSchema = new Schema<PaymentDocument>(
     code: { type: String, required: true },
     externalSessionId: { type: String },
     qrFingerprint: { type: String, required: true },
+    accountEmail: { type: String },
     assignedEmployeeId: { type: String },
     broadcast: { type: Boolean, default: false },
     createdByUserId: { type: String },
@@ -90,6 +92,7 @@ function toEntity(doc: PaymentDocument): PaymentSession {
     code: doc.code,
     externalSessionId: doc.externalSessionId,
     qrFingerprint: doc.qrFingerprint,
+    accountEmail: doc.accountEmail,
     assignedEmployeeId: doc.assignedEmployeeId,
     broadcast: doc.broadcast === true,
     createdByUserId: doc.createdByUserId,
@@ -112,6 +115,7 @@ function toDocument(session: PaymentSession): PaymentDocument {
     code: session.code,
     externalSessionId: session.externalSessionId,
     qrFingerprint: session.qrFingerprint,
+    accountEmail: session.accountEmail,
     assignedEmployeeId: session.assignedEmployeeId,
     broadcast: session.broadcast === true,
     createdByUserId: session.createdByUserId,

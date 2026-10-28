@@ -45,6 +45,7 @@ export function createApiClient(fetchImpl: typeof fetch = fetch) {
         qrFingerprint: string;
         qrImage: string;
         expiresAt: string;
+        accountEmail?: string;
       },
     ) {
       return request<CreatedPayment>(config, "/api/internal/payment-sessions", {
@@ -52,13 +53,13 @@ export function createApiClient(fetchImpl: typeof fetch = fetch) {
         body: JSON.stringify(body),
       });
     },
-    updatePaymentStatus(config: ApiConfig, paymentSessionId: string, status: string) {
+    updatePaymentStatus(config: ApiConfig, paymentSessionId: string, status: string, accountEmail?: string) {
       return request<{ paymentSessionId: string; status: string }>(
         config,
         `/api/internal/payment-sessions/${paymentSessionId}/status`,
         {
           method: "PATCH",
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({ status, ...(accountEmail ? { accountEmail } : {}) }),
         },
       );
     },

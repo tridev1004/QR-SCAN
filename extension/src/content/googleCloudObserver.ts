@@ -4,6 +4,7 @@ import { detectExpired, detectFailure, detectSuccess } from "./statusDetector";
 import { describeScan } from "./scanReport";
 import { expiresAtFromTimer, parseTimerToSeconds, readCountdown } from "./timerDetector";
 import { findQrImage, fingerprintQrImage, isQrScreen, safePageUrl } from "./qrDetector";
+import { readAccountEmail } from "./accountEmail";
 import { forEachShadowRoot } from "./domQuery";
 
 const FALLBACK_EXPIRY_MS = 5 * 60 * 1000;
@@ -25,6 +26,7 @@ export function startGoogleCloudObserver(options: {
   let lastFingerprint: string | null = null;
   let lastStatusKey = "";
   let lastSummary = "";
+  let lastEmail = "";
   let scanning = false;
   let queued = false;
   let stopped = false;
@@ -59,7 +61,13 @@ export function startGoogleCloudObserver(options: {
       lastStatusKey = `${fingerprint}:closed`;
       options.send({
         type: "PAGE_STATUS",
-        payload: { qrFingerprint: fingerprint, success: false, failure: true, expired: false },
+        payload: {
+          qrFingerprint: fingerprint,
+          success: false,
+          failure: true,
+          expired: false,
+          ...(lastEmail ? { accountEmail: lastEmail } : {}),
+        },
       });
     }, options.closeDelayMs ?? CLOSE_DELAY_MS);
   };
@@ -72,6 +80,11 @@ export function startGoogleCloudObserver(options: {
     scanning = true;
     try {
       observeTree(options.document);
+      const accountEmail = readAccountEmail(options.document) || lastEmail || "";
+      if (accountEmail && accountEmail !== lastEmail) {
+        lastEmail = accountEmail;
+        options.send({ type: "ACCOUNT_SEEN", payload: { email: accountEmail } });
+      }
       const frameUrl = options.document.defaultView?.location.href ?? "";
       const report = describeScan(options.document, frameUrl);
       const summary = `${report.frameUrl}:${report.heading}:${report.image}:${report.timer ?? ""}`;
@@ -104,6 +117,7 @@ export function startGoogleCloudObserver(options: {
               qrImage: src,
               expiresAt: seenExpiry.get(fingerprint) ?? new Date(now() + FALLBACK_EXPIRY_MS).toISOString(),
               sourceUrl: safePageUrl(frameUrl),
+              ...(accountEmail ? { accountEmail } : {}),
             },
           });
           if (!response || (response.ok && !response.pending)) {
@@ -156,6 +170,7 @@ export function startGoogleCloudObserver(options: {
           success,
           failure: failure && !expired,
           expired,
+          ...(accountEmail || lastEmail ? { accountEmail: accountEmail || lastEmail } : {}),
         },
       });
     } catch (error) {
@@ -230,9 +245,11 @@ export async function captureVisibleQr(document: Document, now = Date.now()): Pr
   }
   const timerText = readCountdown(document);
   const expiresAt = (timerText && expiresAtFromTimer(timerText, now)) || new Date(now + FALLBACK_EXPIRY_MS).toISOString();
+  const accountEmail = readAccountEmail(document);
   return {
     qrFingerprint: await fingerprintQrImage(src),
     qrImage: src,
     expiresAt,
+    ...(accountEmail ? { accountEmail } : {}),
   };
 }
