@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { IndianRupee, LogOut, Menu, QrCode, X } from "lucide-react";
+import { History, IndianRupee, LogOut, Menu, QrCode, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,9 @@ export function EmployeeSidebar({ name, onSignOut }: { name: string; onSignOut: 
         <nav className="flex flex-1 flex-col gap-1" aria-label="Employee">
           <SidebarLink to="/dashboard" icon={<QrCode />} onNavigate={() => setOpen(false)}>
             My sessions
+          </SidebarLink>
+          <SidebarLink to="/history" icon={<History />} onNavigate={() => setOpen(false)}>
+            History
           </SidebarLink>
           <SidebarLink to="/payout" icon={<IndianRupee />} onNavigate={() => setOpen(false)}>
             Payout

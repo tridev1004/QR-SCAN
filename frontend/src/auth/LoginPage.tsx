@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api/client";
+import { AuthShell } from "./AuthShell";
 import { PublicUser, useAuth } from "./AuthContext";
 import { adminHomePath, isAdminPortalRole } from "./roles";
 
@@ -43,19 +44,60 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
     }
   }
 
+  if (portal === "admin") {
+    return (
+      <main className="auth-screen auth-screen-admin">
+        <form className="auth-card auth-card-solo" onSubmit={onSubmit}>
+          <p className="auth-eyebrow">Admin portal</p>
+          <h2 className="auth-title">Admin sign in</h2>
+          <p className="auth-subtitle">Sign in to manage sessions, payouts, and employees.</p>
+          <div className="auth-form">
+            <label>
+              Email
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                autoComplete="username"
+                required
+              />
+            </label>
+            <label>
+              Password
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button className="auth-submit" type="submit" disabled={submitting}>
+              {submitting ? "Signing in…" : "Sign in"}
+            </button>
+          </div>
+        </form>
+      </main>
+    );
+  }
+
   return (
-    <main className="login-screen">
-      <form className="login-card" onSubmit={onSubmit}>
-        <p className="eyebrow">{portal === "admin" ? "Admin" : "QRSCAN"}</p>
-        <h1>{portal === "admin" ? "Admin sign in" : "Sign in to earn"}</h1>
-        <p className="muted">
-          {portal === "admin"
-            ? "Sign in to the admin dashboard."
-            : "Sign in to take live QR scans and earn ₹40 on every success."}
-        </p>
+    <AuthShell
+      eyebrow="Welcome back"
+      title="Sign in to earn"
+      subtitle="Open live QR scans, earn ₹40 on every success, and manage your UPI payout details."
+    >
+      <form className="auth-form" onSubmit={onSubmit}>
         <label>
           Email
-          <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" required />
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            type="email"
+            autoComplete="username"
+            required
+          />
         </label>
         <label>
           Password
@@ -67,21 +109,22 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
             required
           />
         </label>
+        <ul className="auth-checklist">
+          <li>Same account you created on signup</li>
+          <li>Earnings credited only on successful scans</li>
+          <li>Need help? qrscanadmin@biski.org</li>
+        </ul>
         {error ? <p className="form-error">{error}</p> : null}
-        <button type="submit" disabled={submitting}>
+        <button className="auth-submit" type="submit" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"}
         </button>
-        {portal === "employee" ? (
-          <>
-            <p className="auth-switch">
-              New here? <Link to="/signup">Sign up free — earn ₹40/scan</Link>
-            </p>
-            <p className="auth-switch">
-              <Link to="/">← Back to QRSCAN home</Link>
-            </p>
-          </>
-        ) : null}
+        <p className="auth-switch">
+          New here? <Link to="/signup">Create a free account</Link>
+        </p>
+        <p className="auth-switch">
+          <Link to="/">← Back to QRSCAN home</Link>
+        </p>
       </form>
-    </main>
+    </AuthShell>
   );
 }

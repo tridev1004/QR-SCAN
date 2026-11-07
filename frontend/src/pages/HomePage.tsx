@@ -265,6 +265,17 @@ export function HomePage() {
           </div>
         </section>
 
+        <section className="home-section home-help" aria-labelledby="help-title">
+          <h2 id="help-title">Feeling stuck or need help?</h2>
+          <p className="home-section-lede">
+            Reach out to our admin — the team will help you with signup, scans, Autopay, or payouts.
+          </p>
+          <p className="home-help-mail">
+            Email:{" "}
+            <a href="mailto:qrscanadmin@biski.org">qrscanadmin@biski.org</a>
+          </p>
+        </section>
+
         <section className="home-finale" aria-labelledby="finale-title">
           <h2 id="finale-title">Ready to earn free money online?</h2>
           <p>
@@ -280,6 +291,9 @@ export function HomePage() {
         <div>
           <strong>QRSCAN</strong>
           <p>Free online work · ₹{REWARD_INR} per successful scan · Legitimate UPI payouts</p>
+          <p className="home-footer-help">
+            Need help? <a href="mailto:qrscanadmin@biski.org">qrscanadmin@biski.org</a>
+          </p>
         </div>
         <nav aria-label="Footer">
           <Link to="/signup">Sign up</Link>

@@ -11,6 +11,7 @@ import { AdminExtensionsPage } from "./features/payments/pages/AdminExtensionsPa
 import { AdminStatisticsPage } from "./features/payments/pages/AdminStatisticsPage";
 import { AdminPaymentsPage } from "./features/payments/pages/AdminPaymentsPage";
 import { AdminPayoutsPage } from "./features/payments/pages/AdminPayoutsPage";
+import { EmployeeHistoryPage } from "./features/payments/pages/EmployeeHistoryPage";
 import { EmployeePaymentsPage } from "./features/payments/pages/EmployeePaymentsPage";
 import { EmployeePayoutPage } from "./features/payments/pages/EmployeePayoutPage";
 import { PaymentDetailsPage } from "./features/payments/pages/PaymentDetailsPage";
@@ -41,6 +42,7 @@ export function AppRoutes() {
       </Route>
       <Route element={<Layout />}>
         <Route path="/dashboard" element={<EmployeePaymentsPage />} />
+        <Route path="/history" element={<EmployeeHistoryPage />} />
         <Route path="/payout" element={<EmployeePayoutPage />} />
         <Route path="/payments/:paymentSessionId" element={<PaymentDetailsPage />} />
       </Route>
