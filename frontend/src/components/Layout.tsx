@@ -46,16 +46,3 @@ export function Layout() {
   );
 }
 
-export function HomeRedirect() {
-  const { user } = useAuth();
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  if (isAdminPortalRole(user.role)) {
-    return <Navigate to={adminHomePath(user.role)} replace />;
-  }
-  if (user.role === "EMPLOYEE") {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return <Navigate to="/login" replace />;
-}

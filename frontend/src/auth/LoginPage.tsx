@@ -46,12 +46,12 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
   return (
     <main className="login-screen">
       <form className="login-card" onSubmit={onSubmit}>
-        <p className="eyebrow">{portal === "admin" ? "Admin" : "Employee"}</p>
-        <h1>{portal === "admin" ? "Admin sign in" : "Employee sign in"}</h1>
+        <p className="eyebrow">{portal === "admin" ? "Admin" : "QRSCAN"}</p>
+        <h1>{portal === "admin" ? "Admin sign in" : "Sign in to earn"}</h1>
         <p className="muted">
           {portal === "admin"
             ? "Sign in to the admin dashboard."
-            : "Sign in to scan the QR an admin sends to you."}
+            : "Sign in to take live QR scans and earn ₹40 on every success."}
         </p>
         <label>
           Email
@@ -72,9 +72,14 @@ export function LoginPage({ portal }: { portal: "employee" | "admin" }) {
           {submitting ? "Signing in…" : "Sign in"}
         </button>
         {portal === "employee" ? (
-          <p className="auth-switch">
-            New here? <Link to="/signup">Create an account</Link>
-          </p>
+          <>
+            <p className="auth-switch">
+              New here? <Link to="/signup">Sign up free — earn ₹40/scan</Link>
+            </p>
+            <p className="auth-switch">
+              <Link to="/">← Back to QRSCAN home</Link>
+            </p>
+          </>
         ) : null}
       </form>
     </main>

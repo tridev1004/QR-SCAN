@@ -5,7 +5,7 @@ import { adminHomePath, isAdminPortalRole } from "./auth/roles";
 import { LoginPage } from "./auth/LoginPage";
 import { SignupPage } from "./auth/SignupPage";
 import { VerifyEmailPage } from "./auth/VerifyEmailPage";
-import { HomeRedirect, Layout } from "./components/Layout";
+import { Layout } from "./components/Layout";
 import { AdminBroadcastsPage } from "./features/payments/pages/AdminBroadcastsPage";
 import { AdminExtensionsPage } from "./features/payments/pages/AdminExtensionsPage";
 import { AdminStatisticsPage } from "./features/payments/pages/AdminStatisticsPage";
@@ -16,10 +16,12 @@ import { EmployeePayoutPage } from "./features/payments/pages/EmployeePayoutPage
 import { PaymentDetailsPage } from "./features/payments/pages/PaymentDetailsPage";
 import { AdminCreateEmployeePage } from "./features/users/AdminCreateEmployeePage";
 import { AdminUsersPage } from "./features/users/AdminUsersPage";
+import { HomePage } from "./pages/HomePage";
 
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage portal="employee" />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -38,7 +40,6 @@ export function AppRoutes() {
         </Route>
       </Route>
       <Route element={<Layout />}>
-        <Route path="/" element={<HomeRedirect />} />
         <Route path="/dashboard" element={<EmployeePaymentsPage />} />
         <Route path="/payout" element={<EmployeePayoutPage />} />
         <Route path="/payments/:paymentSessionId" element={<PaymentDetailsPage />} />

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /signup
+Allow: /login
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /payout
+Disallow: /payments
+Disallow: /verify-email
+
+Sitemap: https://chathere.site/sitemap.xml

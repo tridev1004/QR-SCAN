@@ -69,9 +69,11 @@ export function SignupPage() {
           </>
         ) : (
           <form className="signup-form" onSubmit={onSubmit}>
-            <p className="eyebrow">Employee</p>
-            <h1>Create an account</h1>
-            <p className="muted">Sign up with your email. We will send one confirmation link.</p>
+            <p className="eyebrow">QRSCAN · Free to join</p>
+            <h1>Start earning ₹40 / scan</h1>
+            <p className="muted">
+              Sign up free for online work. Confirm your email once, then earn ₹40 for every successful scan.
+            </p>
             <label>
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
@@ -114,10 +116,13 @@ export function SignupPage() {
             </label>
             {error ? <p className="form-error">{error}</p> : null}
             <button type="submit" disabled={submitting}>
-              {submitting ? "Sending…" : "Create account"}
+              {submitting ? "Sending…" : "Create free account"}
             </button>
             <p className="auth-switch">
               Already have an account? <Link to="/login">Sign in</Link>
+            </p>
+            <p className="auth-switch">
+              <Link to="/">← Back to QRSCAN home</Link>
             </p>
           </form>
         )}

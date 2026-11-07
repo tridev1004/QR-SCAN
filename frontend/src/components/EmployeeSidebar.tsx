@@ -11,8 +11,8 @@ export function EmployeeSidebar({ name, onSignOut }: { name: string; onSignOut: 
     <>
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-card px-3 py-2 md:hidden">
         <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-primary">UPI QR</p>
-          <p className="truncate text-sm font-semibold text-foreground">Monitor</p>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-primary">QRSCAN</p>
+          <p className="truncate text-sm font-semibold text-foreground">Earn ₹40/scan</p>
         </div>
         <button
           type="button"
@@ -33,8 +33,8 @@ export function EmployeeSidebar({ name, onSignOut }: { name: string; onSignOut: 
         )}
       >
         <div className="hidden px-2 pb-5 md:block">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">UPI QR</p>
-          <p className="text-lg font-semibold text-foreground">Monitor</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">QRSCAN</p>
+          <p className="text-lg font-semibold text-foreground">Earn ₹40/scan</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1" aria-label="Employee">
           <SidebarLink to="/dashboard" icon={<QrCode />} onNavigate={() => setOpen(false)}>

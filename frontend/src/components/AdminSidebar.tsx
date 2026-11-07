@@ -32,8 +32,8 @@ export function AdminSidebar({
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-card px-3 py-4">
       <div className="px-2 pb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">UPI QR</p>
-        <p className="text-lg font-semibold text-foreground">Monitor</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">QRSCAN</p>
+        <p className="text-lg font-semibold text-foreground">Admin</p>
       </div>
       <nav className="flex flex-1 flex-col gap-1" aria-label="Admin">
         {links.map((link) => (
