@@ -1,6 +1,6 @@
-const TITLE = "QRSCAN — Free Money Online | Earn ₹40 Per Successful Scan";
+const TITLE = "QRSCAN — Earn Free Money Online India | How to Earn Money Online ₹40/Scan";
 const DESCRIPTION =
-  "Want free money online? Sign up free on QRSCAN and earn ₹40 for every successful QR scan. Legitimate online work in India with real UPI payouts. No joining fee.";
+  "How to earn money online in India without investment: sign up free on QRSCAN, earn ₹40 per successful QR scan, get paid on UPI. Free money online, part-time work from home.";
 
 function upsertMeta(selector: string, attribute: "name" | "property", key: string, content: string) {
   let node = document.head.querySelector<HTMLMetaElement>(`${selector}[${attribute}="${key}"]`);
@@ -83,6 +83,51 @@ export function applyPublicMeta(pathname = "/") {
               unitText: "SUCCESSFUL_SCAN",
             },
           },
+        },
+        {
+          "@type": "FAQPage",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "How to earn money online in India with QRSCAN?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sign up free on QRSCAN, complete successful QR scans when they are live, and earn ₹40 for each passed scan. Add your UPI ID to receive payouts.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Can I earn free money online without investment?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Yes. QRSCAN does not charge a joining fee, unlock fee, or software charge. You start free and earn ₹40 per successful scan.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Is this online work from home or part-time online jobs?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "QRSCAN is flexible part-time online work you can do from your phone in India when QR scans are available.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "How do UPI payouts work for daily online earning?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Save your UPI ID or payout QR in your account. Successful scans add to your earnings, and admins pay you through UPI.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "What should I do after Autopay or a successful QR scan?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Right after a successful QR scan, remove the mandate from your Autopay request immediately before taking the next scan.",
+              },
+            },
+          ],
         },
       ],
     });
