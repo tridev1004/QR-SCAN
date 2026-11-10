@@ -3,6 +3,7 @@ import { rewardInr, toPublicUser } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
 import { BroadcastRepository } from "../../domain/repositories/BroadcastRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
+import { PresenceService } from "../../infrastructure/realtime/PresenceService";
 import { publishBroadcast as createBroadcast, stopBroadcast as endBroadcast } from "../../application/use-cases/Broadcasts";
 import {
   clearEmployeePause,
@@ -50,9 +51,23 @@ import {
 } from "../validation";
 
 export function createAdminPaymentController(
-  deps: PaymentUseCaseDeps & { users: UserRepository; broadcasts: BroadcastRepository },
+  deps: PaymentUseCaseDeps & { users: UserRepository; broadcasts: BroadcastRepository; presence: PresenceService },
 ) {
   return {
+    async presence(req: Request, res: Response, next: NextFunction) {
+      try {
+        const employees = deps.presence.listActive({ role: UserRole.EMPLOYEE });
+        const all = deps.presence.listActive();
+        res.json({
+          employeeCount: employees.count,
+          totalCount: all.count,
+          users: employees.users,
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async publishBroadcast(req: Request, res: Response, next: NextFunction) {
       try {
         const body = broadcastSchema.parse(req.body);

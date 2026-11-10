@@ -2,6 +2,7 @@ import { Response } from "express";
 import { PublicUser } from "../../domain/entities/User";
 import { UserRole } from "../../domain/enums/UserRole";
 import { PaymentEventBus, PaymentStreamEvent } from "./PaymentEventBus";
+import { PresenceService } from "./PresenceService";
 
 export function eventSessionId(event: PaymentStreamEvent): string {
   if (event.type === "payment-status") {
@@ -48,7 +49,10 @@ export function canReceivePaymentEvent(user: PublicUser, event: PaymentStreamEve
 }
 
 export class PaymentSseService {
-  constructor(private readonly bus: PaymentEventBus) {}
+  constructor(
+    private readonly bus: PaymentEventBus,
+    private readonly presence?: PresenceService,
+  ) {}
 
   connect(user: PublicUser, res: Response, paymentSessionId?: string): void {
     res.status(200);
@@ -57,12 +61,19 @@ export class PaymentSseService {
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
     res.write(": connected\n\n");
+    this.presence?.connect(user);
 
     let unsubscribe: () => void = () => undefined;
     let ping: ReturnType<typeof setInterval> | undefined;
+    let closed = false;
     const stop = () => {
+      if (closed) {
+        return;
+      }
+      closed = true;
       if (ping) clearInterval(ping);
       unsubscribe();
+      this.presence?.disconnect(user.id);
     };
     unsubscribe = this.bus.subscribe((event) => {
       try {
@@ -81,6 +92,7 @@ export class PaymentSseService {
 
     ping = setInterval(() => {
       try {
+        this.presence?.touch(user);
         res.write(": ping\n\n");
       } catch {
         stop();

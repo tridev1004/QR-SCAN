@@ -11,6 +11,7 @@ import { AdminExtensionsPage } from "./features/payments/pages/AdminExtensionsPa
 import { AdminStatisticsPage } from "./features/payments/pages/AdminStatisticsPage";
 import { AdminPaymentsPage } from "./features/payments/pages/AdminPaymentsPage";
 import { AdminPayoutsPage } from "./features/payments/pages/AdminPayoutsPage";
+import { AdminActiveUsersPage } from "./features/presence/pages/AdminActiveUsersPage";
 import { EmployeeHistoryPage } from "./features/payments/pages/EmployeeHistoryPage";
 import { EmployeePaymentsPage } from "./features/payments/pages/EmployeePaymentsPage";
 import { EmployeePayoutPage } from "./features/payments/pages/EmployeePayoutPage";
@@ -36,6 +37,7 @@ export function AppRoutes() {
             <Route path="payouts" element={<AdminPayoutsPage />} />
             <Route path="extensions" element={<AdminExtensionsPage />} />
             <Route path="statistics" element={<AdminStatisticsPage />} />
+            <Route path="active" element={<AdminActiveUsersPage />} />
             <Route path="broadcasts" element={<AdminBroadcastsPage />} />
           <Route path="payments/:paymentSessionId" element={<PaymentDetailsPage />} />
         </Route>

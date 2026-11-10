@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { adminHomePath, canOpenAdminPath, isAdminPortalRole } from "../auth/roles";
+import { usePresenceHeartbeat } from "../features/presence/usePresenceHeartbeat";
 import { AdminSidebar } from "./AdminSidebar";
 import { EmployeeSidebar } from "./EmployeeSidebar";
 
@@ -9,6 +10,7 @@ export function Layout() {
   const { user, clearSession } = useAuth();
   const location = useLocation();
   const [rosterVersion, setRosterVersion] = useState(0);
+  usePresenceHeartbeat(Boolean(user));
   if (!user) {
     return <Navigate to={location.pathname.startsWith("/admin") ? "/admin/login" : "/login"} replace />;
   }
