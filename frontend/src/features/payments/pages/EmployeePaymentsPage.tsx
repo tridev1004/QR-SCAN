@@ -64,7 +64,7 @@ export function EmployeePaymentsPage() {
           </p>
           {!cooldownUntil ? (
             <p className="mt-2">
-              Tip: if two QRs fail or expire in a row, your account pauses for 3 hours.
+              Tip: if two QRs fail or expire in a row, your account pauses for 2 days.
             </p>
           ) : null}
         </details>

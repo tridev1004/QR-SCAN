@@ -10,9 +10,10 @@ import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { createPaymentSession, PaymentUseCaseDeps } from "./CreatePaymentSession";
 import { getEmployeeDashboard, getEmployeePayments, getPaymentQr, getPaymentSession, reservePaymentSession } from "./PaymentQueries";
 import { ConflictError, ForbiddenError } from "../../domain/errors/DomainError";
-import { clearEmployeePause, getAdminPayoutReport, getAdminStatistics, getExtensionUserStats, markEmployeePaid, markEmployeeUnpaid, markExtensionUserPaid, saveEmployeeUpiId } from "./EmployeeAccounts";
+import { clearEmployeePause, COOLDOWN_MS, getAdminPayoutReport, getAdminStatistics, getExtensionUserStats, markEmployeePaid, markEmployeeUnpaid, markExtensionUserPaid, saveEmployeeUpiId } from "./EmployeeAccounts";
 import { requireActiveEmployee } from "./ManageUsers";
 import { expireDuePayments, updatePaymentStatus } from "./UpdatePaymentStatus";
+import { InMemoryNameStrikeBlockRepository } from "../../test/InMemoryNameStrikeBlockRepository";
 
 const admin = { id: "admin", name: "Admin", email: "admin@company.local", role: UserRole.ADMIN, active: true };
 const rahul = {
@@ -37,11 +38,15 @@ function setup() {
   const qrCache = new MemoryPaymentQrCache();
   const events = new PaymentEventBus();
   let current = new Date("2026-10-01T12:00:00.000Z");
-  const deps: PaymentUseCaseDeps & { users: InMemoryUserRepository } = {
+  const deps: PaymentUseCaseDeps & {
+    users: InMemoryUserRepository;
+    nameBlocks: InMemoryNameStrikeBlockRepository;
+  } = {
     payments,
     qrCache,
     events,
     users: new InMemoryUserRepository([rahul, aman]),
+    nameBlocks: new InMemoryNameStrikeBlockRepository(),
     now: () => {
       const value = new Date(current);
       current = new Date(current.getTime() + 1000);
@@ -292,7 +297,7 @@ describe("payment use cases", () => {
     }
   });
 
-  it("pauses an employee for 3 hours after two consecutive failed or expired QRs and records a payout", async () => {
+  it("pauses an employee for 2 days after two consecutive failed or expired QRs and records a payout", async () => {
     const { deps, setNow } = setup();
     setNow(new Date());
     const first = await createQr(deps, "1".repeat(64));
@@ -310,6 +315,7 @@ describe("payment use cases", () => {
     await updatePaymentStatus(deps, second.session.id, PaymentStatus.FAILED, "failed");
     const paused = await deps.users.findById(rahul.id);
     expect(paused?.cooldownUntil && paused.cooldownUntil.getTime()).toBeGreaterThan(Date.now());
+    expect((paused?.cooldownUntil?.getTime() ?? 0) - deps.now().getTime()).toBeGreaterThan(COOLDOWN_MS - 60_000);
     await expect(requireActiveEmployee(deps.users, rahul.id)).rejects.toBeInstanceOf(ForbiddenError);
 
     const resetAt = deps.now();
@@ -360,6 +366,35 @@ describe("payment use cases", () => {
     await saveEmployeeUpiId(deps.users, rahul.id, "rahul@okbank");
     const withUpi = await getAdminPayoutReport(deps.users, deps.payments, deps.now(), { offset: 0, limit: 8, q: "rahul" });
     expect(withUpi.employees[0]?.upiId).toBe("rahul@okbank");
+  });
+
+  it("blocks a new account with the same name from reserving for 8 hours after two fails", async () => {
+    const { deps } = setup();
+    const first = await createQr(deps, "a".repeat(64));
+    await updatePaymentStatus(deps, first.session.id, PaymentStatus.FAILED, "failed");
+    const second = await createQr(deps, "b".repeat(64));
+    await updatePaymentStatus(deps, second.session.id, PaymentStatus.FAILED, "failed");
+
+    const twin = {
+      id: "rahul-twin",
+      name: "Rahul",
+      email: "rahul2@company.local",
+      passwordHash: "x",
+      role: UserRole.EMPLOYEE,
+      active: true,
+    };
+    await deps.users.create(twin);
+
+    const open = await createPaymentSession(deps, {
+      localSessionId: randomUUID(),
+      broadcast: true,
+      qrFingerprint: "c".repeat(64),
+      qrImage: "data:image/png;base64,ccc",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      createdByUserId: admin.id,
+    });
+    await expect(reservePaymentSession(deps, open.session.id, twin.id)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await deps.payments.findById(open.session.id))?.assignedEmployeeId).toBeUndefined();
   });
 
   it("lets an employee reserve only two QRs until one is finished", async () => {

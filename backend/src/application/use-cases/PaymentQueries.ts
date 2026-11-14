@@ -3,6 +3,10 @@ import { PaymentSession } from "../../domain/entities/PaymentSession";
 import { PaymentStatus } from "../../domain/enums/PaymentStatus";
 import { UserRole } from "../../domain/enums/UserRole";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../domain/errors/DomainError";
+import {
+  NameStrikeBlockRepository,
+  normalizeEmployeeName,
+} from "../../domain/repositories/NameStrikeBlockRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { isActive, isTerminal } from "../../domain/services/PaymentStateMachine";
 import { toPaymentDto } from "../dto/payment.dto";
@@ -150,11 +154,12 @@ export async function getAdminPayments(
 export const MAX_ACTIVE_RESERVATIONS = 2;
 
 export async function reservePaymentSession(
-  deps: PaymentUseCaseDeps & { users: UserRepository },
+  deps: PaymentUseCaseDeps & { users: UserRepository; nameBlocks?: NameStrikeBlockRepository },
   paymentSessionId: string,
   employeeId: string,
 ) {
   const employee = await requireActiveEmployee(deps.users, employeeId);
+  await assertNameNotStrikeBlocked(deps, employee);
   const current = await deps.payments.findById(paymentSessionId);
   if (current?.assignedEmployeeId === employee.id && isActive(current.status)) {
     return current;
@@ -177,6 +182,26 @@ export async function reservePaymentSession(
   }
   deps.events.publish({ type: "payment-assigned", data: toPaymentDto(claimed) });
   return claimed;
+}
+
+async function assertNameNotStrikeBlocked(
+  deps: PaymentUseCaseDeps & { nameBlocks?: NameStrikeBlockRepository },
+  employee: { id: string; name: string },
+): Promise<void> {
+  if (!deps.nameBlocks) {
+    return;
+  }
+  const normalizedName = normalizeEmployeeName(employee.name);
+  if (!normalizedName) {
+    return;
+  }
+  const block = await deps.nameBlocks.findActive(normalizedName, deps.now());
+  if (!block || block.sourceEmployeeId === employee.id) {
+    return;
+  }
+  throw new ForbiddenError(
+    "A person with this name already failed two scans recently. Try again after some hours, or use your real different account details.",
+  );
 }
 
 export async function assignPaymentSession(

@@ -5,7 +5,9 @@ import { PaymentUseCaseDeps } from "../application/use-cases/CreatePaymentSessio
 import { TokenService } from "../infrastructure/auth/tokenService";
 import { Mailer } from "../infrastructure/email/Mailer";
 import { BroadcastRepository } from "../domain/repositories/BroadcastRepository";
+import { NameStrikeBlockRepository } from "../domain/repositories/NameStrikeBlockRepository";
 import { InMemoryBroadcastRepository } from "../test/InMemoryBroadcastRepository";
+import { InMemoryNameStrikeBlockRepository } from "../test/InMemoryNameStrikeBlockRepository";
 import { PaymentEventBus } from "../infrastructure/realtime/PaymentEventBus";
 import { PaymentSseService } from "../infrastructure/realtime/PaymentSseService";
 import { PresenceService } from "../infrastructure/realtime/PresenceService";
@@ -31,6 +33,7 @@ export interface AppDeps extends PaymentUseCaseDeps {
   events: PaymentEventBus;
   broadcasts?: BroadcastRepository;
   presence?: PresenceService;
+  nameBlocks?: NameStrikeBlockRepository;
   mailer?: Mailer;
   appPublicUrl?: string;
   corsOrigins?: string[];
@@ -56,6 +59,7 @@ export function createApp(deps: AppDeps) {
     ...deps,
     broadcasts: deps.broadcasts ?? new InMemoryBroadcastRepository(),
     presence,
+    nameBlocks: deps.nameBlocks ?? new InMemoryNameStrikeBlockRepository(),
   };
   app.set("trust proxy", 1);
   app.disable("x-powered-by");

@@ -2,6 +2,10 @@ import { isCoolingDown, rewardInr, User } from "../../domain/entities/User";
 import { PaymentStatus } from "../../domain/enums/PaymentStatus";
 import { UserRole } from "../../domain/enums/UserRole";
 import { ConflictError, NotFoundError } from "../../domain/errors/DomainError";
+import {
+  NameStrikeBlockRepository,
+  normalizeEmployeeName,
+} from "../../domain/repositories/NameStrikeBlockRepository";
 import { PaymentSessionRepository } from "../../domain/repositories/PaymentSessionRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 
@@ -130,8 +134,10 @@ export async function getAdminStatistics(
   };
 }
 
-export const COOLDOWN_MS = 3 * 60 * 60 * 1000;
+export const COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
 export const STRIKE_LIMIT = 2;
+/** Same-name re-signup block after two fails — short so a real different person is not locked out long. */
+export const NAME_STRIKE_BLOCK_MS = 8 * 60 * 60 * 1000;
 
 export function startOfTodayIst(now: Date): Date {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -152,6 +158,7 @@ export async function noteEmployeeStrike(
   employeeId: string | undefined,
   status: PaymentStatus,
   now: Date,
+  nameBlocks?: NameStrikeBlockRepository,
 ): Promise<void> {
   if (!employeeId || (status !== PaymentStatus.FAILED && status !== PaymentStatus.EXPIRED)) {
     return;
@@ -166,6 +173,18 @@ export async function noteEmployeeStrike(
   }
   const cooldownUntil = new Date(now.getTime() + COOLDOWN_MS);
   await users.update({ ...employee, cooldownUntil, strikeResetAt: cooldownUntil });
+  if (nameBlocks) {
+    const normalizedName = normalizeEmployeeName(employee.name);
+    if (normalizedName) {
+      await nameBlocks.upsert({
+        normalizedName,
+        blockedUntil: new Date(now.getTime() + NAME_STRIKE_BLOCK_MS),
+        sourceEmployeeId: employee.id,
+        sourceEmployeeName: employee.name.trim(),
+        createdAt: now,
+      });
+    }
+  }
 }
 
 export async function clearEmployeePause(users: UserRepository, employeeId: string, now: Date): Promise<User> {

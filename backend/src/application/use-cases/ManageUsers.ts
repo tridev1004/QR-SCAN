@@ -38,7 +38,7 @@ export async function requireActiveEmployee(users: UserRepository, employeeId: s
     throw new NotFoundError("Choose an active employee");
   }
   if (isCoolingDown(employee, new Date())) {
-    throw new ForbiddenError("This account is paused for 3 hours after two failed or expired QRs in a row");
+    throw new ForbiddenError("This account is paused for 2 days after two failed or expired QRs in a row");
   }
   return employee;
 }

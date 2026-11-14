@@ -25,6 +25,10 @@ export class PresenceService {
   private readonly entries = new Map<string, PresenceEntry>();
 
   touch(user: PublicUser, now = Date.now()): void {
+    if (!user.active) {
+      this.remove(user.id);
+      return;
+    }
     const current = this.entries.get(user.id);
     this.entries.set(user.id, {
       userId: user.id,
@@ -37,6 +41,10 @@ export class PresenceService {
   }
 
   connect(user: PublicUser, now = Date.now()): void {
+    if (!user.active) {
+      this.remove(user.id);
+      return;
+    }
     const current = this.entries.get(user.id);
     this.entries.set(user.id, {
       userId: user.id,
@@ -61,7 +69,16 @@ export class PresenceService {
     this.entries.set(userId, { ...current, connections, lastSeenAt: Math.max(current.lastSeenAt, now) });
   }
 
-  listActive(options?: { role?: UserRole; maxAgeMs?: number; now?: number }): {
+  remove(userId: string): void {
+    this.entries.delete(userId);
+  }
+
+  listActive(options?: {
+    role?: UserRole;
+    maxAgeMs?: number;
+    now?: number;
+    allowedUserIds?: Set<string>;
+  }): {
     count: number;
     users: ActivePresence[];
   } {
@@ -70,6 +87,9 @@ export class PresenceService {
     const users = [...this.entries.values()]
       .filter((entry) => {
         if (options?.role && entry.role !== options.role) {
+          return false;
+        }
+        if (options?.allowedUserIds && !options.allowedUserIds.has(entry.userId)) {
           return false;
         }
         return entry.connections > 0 || now - entry.lastSeenAt <= maxAgeMs;

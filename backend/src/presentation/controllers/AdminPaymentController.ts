@@ -56,11 +56,17 @@ export function createAdminPaymentController(
   return {
     async presence(req: Request, res: Response, next: NextFunction) {
       try {
-        const employees = deps.presence.listActive({ role: UserRole.EMPLOYEE });
-        const all = deps.presence.listActive();
+        const activeEmployees = (await deps.users.listByRole(UserRole.EMPLOYEE)).filter((user) => user.active);
+        const allowedUserIds = new Set(activeEmployees.map((user) => user.id));
+        for (const entry of deps.presence.listActive({ role: UserRole.EMPLOYEE }).users) {
+          if (!allowedUserIds.has(entry.userId)) {
+            deps.presence.remove(entry.userId);
+          }
+        }
+        const employees = deps.presence.listActive({ role: UserRole.EMPLOYEE, allowedUserIds });
         res.json({
           employeeCount: employees.count,
-          totalCount: all.count,
+          totalCount: employees.count,
           users: employees.users,
         });
       } catch (error) {
@@ -234,6 +240,9 @@ export function createAdminPaymentController(
       try {
         const body = employeeActiveSchema.parse(req.body);
         const saved = await setEmployeeActive(deps.users, req.params.id, body.active);
+        if (!saved.active) {
+          deps.presence.remove(saved.id);
+        }
         logger.info("employee active changed", { employeeId: saved.id, active: saved.active });
         res.json({ employee: toPublicUser(saved) });
       } catch (error) {

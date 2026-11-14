@@ -10,6 +10,7 @@ import {
   reservePaymentSession,
 } from "../../application/use-cases/PaymentQueries";
 import { updatePaymentStatus } from "../../application/use-cases/UpdatePaymentStatus";
+import { NameStrikeBlockRepository } from "../../domain/repositories/NameStrikeBlockRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { PaymentSseService } from "../../infrastructure/realtime/PaymentSseService";
 import { logger } from "../../shared/logger/logger";
@@ -19,7 +20,11 @@ import { saveEmployeePayoutQr, saveEmployeeUpiId } from "../../application/use-c
 import { createPaymentSchema, heartbeatSchema, paymentListSchema, payoutQrSchema, payoutUpiSchema, statusSchema } from "../validation";
 
 export function createPaymentController(
-  deps: PaymentUseCaseDeps & { users: UserRepository; broadcasts?: BroadcastRepository },
+  deps: PaymentUseCaseDeps & {
+    users: UserRepository;
+    broadcasts?: BroadcastRepository;
+    nameBlocks?: NameStrikeBlockRepository;
+  },
   sse: PaymentSseService,
 ) {
   return {

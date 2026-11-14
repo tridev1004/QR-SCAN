@@ -1,5 +1,6 @@
 import { PaymentStatus } from "../../domain/enums/PaymentStatus";
 import { NotFoundError } from "../../domain/errors/DomainError";
+import { NameStrikeBlockRepository } from "../../domain/repositories/NameStrikeBlockRepository";
 import { UserRepository } from "../../domain/repositories/UserRepository";
 import { isTerminal, transitionSession } from "../../domain/services/PaymentStateMachine";
 import { toPaymentDto } from "../dto/payment.dto";
@@ -16,7 +17,7 @@ const STATUS_MESSAGE: Partial<Record<PaymentStatus, string>> = {
 };
 
 export async function updatePaymentStatus(
-  deps: PaymentUseCaseDeps & { users?: UserRepository },
+  deps: PaymentUseCaseDeps & { users?: UserRepository; nameBlocks?: NameStrikeBlockRepository },
   paymentSessionId: string,
   status: PaymentStatus,
   errorMessage?: string,
@@ -74,7 +75,7 @@ export async function updatePaymentStatus(
   });
 
   if (deps.users) {
-    await noteEmployeeStrike(deps.users, deps.payments, saved.assignedEmployeeId, saved.status, now);
+    await noteEmployeeStrike(deps.users, deps.payments, saved.assignedEmployeeId, saved.status, now, deps.nameBlocks);
   }
 
   return saved;
