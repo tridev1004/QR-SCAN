@@ -28,8 +28,8 @@ export function createAdminRoutes(
   router.post("/employees/:id/paid", authorize(UserRole.ADMIN, UserRole.PAYER), (req, res, next) => void controller.markPaid(req, res, next));
   router.post("/employees/:id/unpaid", authorize(UserRole.ADMIN, UserRole.PAYER), (req, res, next) => void controller.markUnpaid(req, res, next));
   router.post("/employees/:id/resume", authorize(UserRole.ADMIN, UserRole.PAYER), (req, res, next) => void controller.clearPause(req, res, next));
+  router.get("/presence", authorize(UserRole.ADMIN, UserRole.SESSION_VIEWER), (req, res, next) => void controller.presence(req, res, next));
   router.use(authorize(UserRole.ADMIN));
-  router.get("/presence", (req, res, next) => void controller.presence(req, res, next));
   router.get("/extension-users", (req, res, next) => void controller.extensionUsers(req, res, next));
   router.post("/extension-users/:id/paid", (req, res, next) => void controller.markExtensionPaid(req, res, next));
   router.get("/statistics", (req, res, next) => void controller.statistics(req, res, next));

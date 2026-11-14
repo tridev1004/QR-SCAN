@@ -21,7 +21,10 @@ export function AdminSidebar({
     role === "PAYER"
       ? [{ to: "/admin/payouts", icon: <IndianRupee />, label: "Payouts" }]
       : role === "SESSION_VIEWER"
-        ? [{ to: "/admin/payments", icon: <QrCode />, label: "Sessions" }]
+        ? [
+            { to: "/admin/payments", icon: <QrCode />, label: "Sessions" },
+            { to: "/admin/active", icon: <Activity />, label: "Active now", badge: activeCount },
+          ]
         : [
             { to: "/admin/users", end: true, icon: <Users />, label: "Employees" },
             { to: "/admin/users/new", icon: <UserPlus />, label: "New employee" },
@@ -34,7 +37,7 @@ export function AdminSidebar({
           ];
 
   useEffect(() => {
-    if (role !== "ADMIN") {
+    if (role !== "ADMIN" && role !== "SESSION_VIEWER") {
       return;
     }
     let cancelled = false;

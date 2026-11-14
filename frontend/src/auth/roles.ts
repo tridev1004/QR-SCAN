@@ -13,6 +13,13 @@ export function adminHomePath(role: UserRole | undefined): string {
 export function canOpenAdminPath(role: UserRole, path: string): boolean {
   if (role === "ADMIN") return true;
   if (role === "PAYER") return path === "/admin/payouts" || path.startsWith("/admin/payouts/");
-  if (role === "SESSION_VIEWER") return path === "/admin/payments" || path.startsWith("/admin/payments/");
+  if (role === "SESSION_VIEWER") {
+    return (
+      path === "/admin/payments" ||
+      path.startsWith("/admin/payments/") ||
+      path === "/admin/active" ||
+      path.startsWith("/admin/active/")
+    );
+  }
   return false;
 }
